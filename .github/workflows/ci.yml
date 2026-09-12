@@ -20,11 +20,17 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: corepack enable
       - run: corepack prepare pnpm@10.15.1 --activate
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - name: Verify packaged Action runtime
+        shell: bash
+        run: |
+          pnpm build:action
+          git diff --exit-code -- dist/action
+          test -z "$(git status --porcelain --untracked-files=all -- dist/action)"
       - name: Validate builtin recipes
         shell: bash
         run: |
@@ -44,7 +50,7 @@ jobs:
           node-version: 22
       - run: corepack enable
       - run: corepack prepare pnpm@10.15.1 --activate
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: node packages/cli/dist/bin.js --help
       - run: node packages/cli/dist/bin.js recipes list --root .

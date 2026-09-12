@@ -9,12 +9,14 @@
   "scripts": {
     "clean": "find packages -type d -name dist -prune -exec rm -rf {} +",
     "build": "tsc -b",
+    "build:action": "pnpm build && node scripts/build-action.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "npm run build && node --test packages/*/test/*.test.mjs test/*.test.mjs",
     "lint": "node scripts/lint.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "esbuild": "0.28.2",
     "typescript": "^5.8.3"
   }
 }
