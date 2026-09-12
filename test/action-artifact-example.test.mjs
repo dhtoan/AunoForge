@@ -37,6 +37,7 @@ test('getting started documents SARIF and workflow annotations as least-privileg
   assert.match(source, /do not require `checks: write`/i);
   assert.match(source, /does not automatically upload/i);
   assert.match(source, /code scanning/i);
+  assert.match(source, /examples\/aunoforge-review-v0\.2\.yml/);
 });
 
 test('incremental baseline docs define the offline local-file boundary and all four states', async () => {
