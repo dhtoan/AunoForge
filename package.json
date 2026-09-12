@@ -12,7 +12,8 @@
     "build:action": "pnpm build && node scripts/build-action.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "npm run build && node --test packages/*/test/*.test.mjs test/*.test.mjs",
-    "lint": "node scripts/lint.mjs"
+    "lint": "node scripts/lint.mjs",
+    "release:check": "pnpm build:action && node scripts/release-readiness.mjs --stable-tag v0.1.0 --next-tag v0.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

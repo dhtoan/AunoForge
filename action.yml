@@ -36,3 +36,6 @@ outputs:
 runs:
   using: node24
   main: dist/action/index.mjs
+branding:
+  icon: shield
+  color: blue
