@@ -29,7 +29,7 @@ function providerFromArgs(args:string[]):AunoForgeProvider{
   if(id==="claude"){const apiKey=process.env.ANTHROPIC_API_KEY;if(!apiKey)throw new Error("ANTHROPIC_API_KEY is required for Claude provider");return new ClaudeProvider({apiKey,model});}
   throw new Error(`Unknown provider: ${id}`);
 }
-function githubFromEnv():GitHubReader{return new GitHubReader({token:process.env.GITHUB_TOKEN});}
+function githubFromEnv():GitHubReader{return new GitHubReader({token:process.env.GITHUB_TOKEN,apiBase:process.env.GITHUB_API_URL});}
 
 export async function runCli(argv=process.argv.slice(2)):Promise<number>{
   const [command,...args]=argv;
