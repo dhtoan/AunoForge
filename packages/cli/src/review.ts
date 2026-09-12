@@ -1,5 +1,5 @@
 import { dedupeFindings, normalizeReviewReport, verifyFindingEvidence, type AunoForgeProvider, type AuditEvent, type Finding, type ReviewReport } from "@aunoforge/core";
-import { renderJson, renderMarkdown, renderTerminal } from "@aunoforge/reporters";
+import { renderReport, type ReportFormat } from "@aunoforge/reporters";
 import type { PullRequest } from "@aunoforge/github";
 import { buildAnalysisContext } from "./context.js";
 import { getLocalDiff } from "./git.js";
@@ -58,8 +58,6 @@ export async function review(options:ReviewOptions):Promise<ReviewReport>{
   return normalizeReviewReport(repository,verified);
 }
 
-export function renderReview(report:ReviewReport,format:"terminal"|"markdown"|"json"="terminal"):string{
-  if(format==="markdown")return renderMarkdown(report);
-  if(format==="json")return renderJson(report);
-  return renderTerminal(report);
+export function renderReview(report:ReviewReport,format:ReportFormat="terminal"):string{
+  return renderReport(report,format);
 }
