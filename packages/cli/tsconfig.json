@@ -1,4 +1,15 @@
 {
-  "extends":"../../tsconfig.base.json","compilerOptions":{"outDir":"dist","rootDir":"src","composite":true},
-  "references":[{"path":"../core"},{"path":"../recipes"},{"path":"../reporters"},{"path":"../github"},{"path":"../provider-mock"},{"path":"../provider-codex"},{"path":"../provider-claude"}],"include":["src/**/*.ts"]
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": "src", "composite": true },
+  "references": [
+    { "path": "../comparison" },
+    { "path": "../core" },
+    { "path": "../recipes" },
+    { "path": "../reporters" },
+    { "path": "../github" },
+    { "path": "../provider-mock" },
+    { "path": "../provider-codex" },
+    { "path": "../provider-claude" }
+  ],
+  "include": ["src/**/*.ts"]
 }

@@ -20,6 +20,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@aunoforge/comparison':
+        specifier: workspace:*
+        version: link:../comparison
       '@aunoforge/core':
         specifier: workspace:*
         version: link:../core
@@ -41,6 +44,12 @@ importers:
       '@aunoforge/reporters':
         specifier: workspace:*
         version: link:../reporters
+
+  packages/comparison:
+    dependencies:
+      '@aunoforge/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/core: {}
 
@@ -72,6 +81,9 @@ importers:
 
   packages/reporters:
     dependencies:
+      '@aunoforge/comparison':
+        specifier: workspace:*
+        version: link:../comparison
       '@aunoforge/core':
         specifier: workspace:*
         version: link:../core

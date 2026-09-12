@@ -1,10 +1,12 @@
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import { createApprovalToken, type AunoForgeProvider } from "@aunoforge/core";
+import { compareReviewReports, validateBaselineReport } from "@aunoforge/comparison";
 import { GitHubReader } from "@aunoforge/github";
 import { MockProvider } from "@aunoforge/provider-mock";
 import { CodexProvider } from "@aunoforge/provider-codex";
 import { ClaudeProvider } from "@aunoforge/provider-claude";
+import { renderReport } from "@aunoforge/reporters";
 import { initializeAunoForge } from "./init.js";
 import { runDoctor } from "./doctor.js";
 import { triageIssue, renderTriage } from "./triage.js";
@@ -54,11 +56,14 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     const provider=providerFromArgs(args), format=reviewFormatValue(args), prValue=argValue(args,"--pr"), audit=new AuditLogger(resolve(root,".aunoforge","audit.log"));
     const diffPath=argValue(args,"--diff");
     const suppliedDiff=diffPath?await readFile(resolve(diffPath),"utf8"):undefined;
+    const baselinePath=argValue(args,"--baseline");
+    const baseline=baselinePath?validateBaselineReport(JSON.parse(await readFile(resolve(baselinePath),"utf8"))):undefined;
     if(prValue&&suppliedDiff!==undefined)throw new Error("--pr and --diff cannot be used together");
     const report=prValue
       ? await review({root,provider,github:{reader:githubFromEnv(),owner:required(args,"--owner"),repo:required(args,"--repo"),prNumber:Number(prValue)},runTests:args.includes("--run-tests"),audit})
       : await review({root,provider,base:argValue(args,"--base"),...(suppliedDiff!==undefined?{diff:suppliedDiff}:{}),runTests:args.includes("--run-tests"),audit});
-    console.log(renderReview(report,format).trimEnd());return 0;
+    const incremental=baseline?compareReviewReports(baseline,report):undefined;
+    console.log((incremental?renderReport(report,format,incremental):renderReview(report,format)).trimEnd());return 0;
   }
   if(command==="release"){
     const from=argValue(args,"--from");

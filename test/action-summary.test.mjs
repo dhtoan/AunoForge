@@ -76,6 +76,23 @@ test('Step Summary is concise, structured, and explicit about write mode', () =>
   assert.equal(output.endsWith('\n'), true);
 });
 
+test('Step Summary leads with incremental evidence counts when a baseline is present', () => {
+  const output = renderActionStepSummary({
+    report,
+    provider: 'mock',
+    format: 'json',
+    reportPath: '/repo/aunoforge-review.json',
+    commentEnabled: false,
+    allowWrite: false,
+    incrementalSummary: { new: 2, regressed: 1, persistent: 3, resolved: 1 },
+    annotationSummary: { eligible: 3, emitted: 3, overflow: 0 },
+  });
+
+  assert.match(output, /Incremental \| New 2 · Regressed 1 · Persistent 3 · Resolved 1/);
+  assert.ok(output.indexOf('| Incremental |') < output.indexOf('| Findings |'));
+  assert.ok(output.indexOf('| Incremental |') < output.indexOf('| Severity |'));
+});
+
 test('Step Summary reports explicit PR comment write mode only when both gates are enabled', () => {
   const output = renderActionStepSummary({
     report,
