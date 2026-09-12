@@ -4,6 +4,7 @@ import { readFile, writeFile, appendFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateReviewReport } from '../packages/core/dist/index.js';
+import { compareReviewReports, validateBaselineReport } from '../packages/comparison/dist/index.js';
 import { renderReport, selectGitHubAnnotations } from '../packages/reporters/dist/index.js';
 import { emitGitHubAnnotations } from './action-annotations.mjs';
 import { renderActionStepSummary } from './action-summary.mjs';
@@ -17,6 +18,7 @@ const command = process.env.INPUT_COMMAND || 'review';
 const provider = process.env.INPUT_PROVIDER || 'mock';
 const model = process.env.INPUT_MODEL || '';
 const format = process.env.INPUT_FORMAT || 'markdown';
+const baselineInput = process.env.INPUT_BASELINE || '';
 const comment = (process.env.INPUT_COMMENT || 'false').toLowerCase() === 'true';
 const allowWrite = (process.env.INPUT_ALLOW_WRITE || 'false').toLowerCase() === 'true';
 const githubApiBase = (process.env.GITHUB_API_URL || 'https://api.github.com').replace(/\/$/, '');
@@ -72,7 +74,11 @@ async function fetchPullRequestDiff() {
 
 const rawReport = await runNode(args);
 const structuredReport = validateReviewReport(JSON.parse(rawReport));
-const report = renderReport(structuredReport, format);
+const baseline = baselineInput
+  ? validateBaselineReport(JSON.parse(await readFile(resolve(workspace, baselineInput), 'utf8')))
+  : undefined;
+const incremental = baseline ? compareReviewReports(baseline, structuredReport) : undefined;
+const report = renderReport(structuredReport, format, incremental);
 process.stdout.write(report);
 
 const extension = format === 'json' ? 'json' : format === 'markdown' ? 'md' : format === 'sarif' ? 'sarif' : 'txt';
@@ -86,7 +92,15 @@ if (hasPullRequestContext) {
   try {
     const diff = await fetchPullRequestDiff();
     if (diff !== undefined) {
-      const selection = selectGitHubAnnotations(structuredReport, diff);
+      const annotationReport = incremental
+        ? {
+            ...structuredReport,
+            findings: incremental.findings
+              .filter((item) => item.state === 'new' || item.state === 'regressed')
+              .map((item) => item.finding),
+          }
+        : structuredReport;
+      const selection = selectGitHubAnnotations(annotationReport, diff);
       emitGitHubAnnotations(selection.annotations);
       annotationSummary = {
         eligible: selection.eligible,
@@ -108,6 +122,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     reportPath,
     commentEnabled: comment,
     allowWrite,
+    incrementalSummary: incremental?.summary,
     annotationSummary,
   });
   await appendFile(process.env.GITHUB_STEP_SUMMARY, stepSummary, 'utf8');

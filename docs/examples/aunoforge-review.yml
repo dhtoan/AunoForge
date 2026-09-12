@@ -14,12 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Optional: restore or download a prior AunoForge JSON report into this path.
+      # Artifact retention/download orchestration stays outside AunoForge core.
       - uses: dhtoan/AunoForge@main
         id: aunoforge
         with:
           command: review
           provider: mock
           format: sarif
+          baseline: .aunoforge/baseline.json
           comment: 'false'
 
       # Optional: persist the generated SARIF report. Step Summary and workflow annotations work without this.
