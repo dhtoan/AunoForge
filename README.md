@@ -29,6 +29,39 @@ Without handing repository control to an AI model.
 
 ---
 
+## ⚡ 60-second proof
+
+Want the shortest proof path? Copy this workflow into `.github/workflows/aunoforge.yml`. It uses the released **v0.1.0** Action, the zero-key `mock` provider, read-only permissions, and no PR comments. GitHub runner startup time varies.
+
+```yaml
+name: AunoForge Proof
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dhtoan/AunoForge@v0.1.0
+        with:
+          provider: mock
+          format: markdown
+          comment: 'false'
+```
+
+No API key is required. The stable Action generates a Markdown review report without enabling repository writes. A maintained CI smoke workflow runs this exact release tag, and the full copy-paste file lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).
+
+> **Stable vs. current main:** `v0.1.0` is the published stable Action. SARIF, incremental baselines, Step Summary, and the prebuilt Node 24 runtime are current-main / upcoming v0.2 capabilities and are intentionally documented separately in [the v0.2 example](docs/examples/aunoforge-review-v0.2.yml).
+
+---
+
 ## Why AunoForge?
 
 AI can generate a code review in seconds. The harder problem is deciding whether the review is **grounded in the repository, safe to act on, and reproducible by another maintainer**.
@@ -110,7 +143,7 @@ See the full [Getting Started guide](docs/getting-started.md).
 | 📦 **Release preparation** | `aunoforge release` | Drafts release notes from Git history and optional PR metadata | No publishing |
 | 🧩 **Recipes** | `recipes list`, `recipe validate`, `recipe test` | Extends workflows without changing core | No arbitrary execution |
 | 🤖 **Provider adapters** | `mock`, `codex`, `claude` | Keeps model-specific APIs behind one contract | Explicit provider selection |
-| ⚙️ **GitHub Action** | `uses: dhtoan/AunoForge@main` | Runs AunoForge review in CI | `comment: false` |
+| ⚙️ **GitHub Action** | `uses: dhtoan/AunoForge@v0.1.0` | Runs the published stable AunoForge review in CI | `comment: false` |
 
 ---
 
@@ -353,7 +386,7 @@ Read the [Security Model](docs/concepts/security.md) and [Security Policy](SECUR
 
 ## ⚙️ GitHub Action
 
-AunoForge includes a composite GitHub Action that defaults to **read-only review** and **does not post comments**.
+The published **v0.1.0** release includes a GitHub Action that defaults to **read-only review** and **does not post comments**.
 
 ```yaml
 name: AunoForge Review
@@ -372,7 +405,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dhtoan/AunoForge@main
+      - uses: dhtoan/AunoForge@v0.1.0
         with:
           provider: mock
           format: markdown
@@ -388,6 +421,8 @@ with:
 ```
 
 AunoForge never auto-merges a pull request from this workflow.
+
+For current-main / upcoming v0.2 features such as SARIF and incremental baselines, use the explicitly labeled [v0.2 example](docs/examples/aunoforge-review-v0.2.yml) rather than assuming those inputs exist in v0.1.0.
 
 ---
 
