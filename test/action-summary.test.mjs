@@ -14,7 +14,7 @@ const report = {
       severity: 'high',
       category: 'javascript-eval',
       title: 'Dynamic eval',
-      evidence: ['eval(userInput)'],
+      evidence: ['dynamic evaluation fixture'],
       explanation: 'Avoid eval.',
       confidence: 1,
       source: 'deterministic',
