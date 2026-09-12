@@ -25,9 +25,17 @@ jobs:
           provider: mock
           format: json
           comment: 'false'
+      - uses: ./
+        id: aunoforge-sarif
+        with:
+          command: review
+          provider: mock
+          format: sarif
+          comment: 'false'
       - uses: actions/upload-artifact@v4
         with:
           name: aunoforge-report
           path: |
             ${{ steps.aunoforge-markdown.outputs.report-path }}
             ${{ steps.aunoforge-json.outputs.report-path }}
+            ${{ steps.aunoforge-sarif.outputs.report-path }}
