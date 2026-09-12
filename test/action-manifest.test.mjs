@@ -36,6 +36,15 @@ test('action runs from a checked-in Node 24 runtime without consumer installs or
   assert.doesNotMatch(source, /using:\s+composite/);
 });
 
+test('Action exposes SARIF without adding a write-capable permission or token input', async () => {
+  const source = await readFile(actionSourceUrl, 'utf8');
+
+  assert.match(source, /Report format: markdown, json, terminal, or sarif\./);
+  assert.doesNotMatch(source, /checks:\s*write/i);
+  assert.doesNotMatch(source, /^\s{2}(?:github-)?token:\s*$/mi);
+  assert.doesNotMatch(source, /^\s{2}annotations?:\s*$/mi);
+});
+
 test('packaged action bundle targets Node 24', async () => {
   const source = await readFile(new URL('../scripts/build-action.mjs', import.meta.url), 'utf8');
 
