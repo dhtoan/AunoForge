@@ -1,0 +1,45 @@
+name: Phase 4 Proof Excerpt Green
+
+on:
+  push:
+    branches:
+      - fix/v0.2-stable-proof-excerpt
+    paths:
+      - .github/workflows/phase4-proof-excerpt-green.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.2-stable-proof-excerpt
+      - name: Insert artifact-derived stable output excerpt
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('README.md')
+          text = path.read_text()
+          anchor = "No API key is required. The stable Action generates a Markdown review report without enabling repository writes. A maintained CI smoke workflow runs this exact release tag, and the full copy-paste file lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).\n\n"
+          excerpt = "### Verified v0.1.0 output\n\nThe maintained [stable smoke workflow](.github/workflows/stable-action-smoke.yml) ran `dhtoan/AunoForge@v0.1.0` with `provider: mock` and produced this report:\n\n```text\n# AunoForge Review\n\nRecommendation: **approve**\n\nCritical: 0 · High: 0 · Medium: 0 · Low: 0 · Info: 0\n\nNo findings.\n```\n\n"
+          if anchor not in text:
+              raise SystemExit('stable proof anchor not found')
+          if '### Verified v0.1.0 output' in text:
+              raise SystemExit('verified output already present')
+          text = text.replace(anchor, anchor + excerpt, 1)
+          path.write_text(text)
+          PY
+      - name: Commit README only
+        shell: bash
+        run: |
+          git add README.md
+          test "$(git diff --cached --name-only)" = "README.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: show verified v0.1.0 smoke output"
+          git push origin HEAD:fix/v0.2-stable-proof-excerpt
