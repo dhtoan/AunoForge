@@ -1,10 +1,13 @@
 // scripts/action.mjs
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { readFile, writeFile, appendFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 var sourceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 var actionRoot = resolve(process.env.GITHUB_ACTION_PATH || sourceRoot);
+var packagedCli = fileURLToPath(new URL("./cli.mjs", import.meta.url));
+var cliPath = existsSync(packagedCli) ? packagedCli : join(actionRoot, "dist/action/cli.mjs");
 var workspace = resolve(process.env.GITHUB_WORKSPACE || process.cwd());
 var command = process.env.INPUT_COMMAND || "review";
 var provider = process.env.INPUT_PROVIDER || "mock";
@@ -16,7 +19,7 @@ if (command !== "review") throw new Error("AunoForge Action supports command=rev
 if (comment && !allowWrite) throw new Error("comment=true requires allow-write=true and pull-requests: write permission.");
 if (!["mock", "codex", "claude"].includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
 if (!["terminal", "markdown", "json"].includes(format)) throw new Error(`Unsupported format: ${format}`);
-var args = [join(actionRoot, "dist/action/cli.mjs"), "review", "--root", workspace, "--provider", provider, "--format", format];
+var args = [cliPath, "review", "--root", workspace, "--provider", provider, "--format", format];
 if (model) args.push("--model", model);
 var eventPath = process.env.GITHUB_EVENT_PATH;
 var event = {};
