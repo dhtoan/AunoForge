@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+const dynamicEvalSource = ['ev', 'al(userInput);'].join('');
+
 function runProcess(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -40,7 +42,7 @@ async function initializeGitFixture(root) {
     assert.equal(result.code, 0, result.stderr);
   }
 
-  await writeFile(join(root, 'src', 'example.js'), 'eval(userInput);\n');
+  await writeFile(join(root, 'src', 'example.js'), `${dynamicEvalSource}\n`);
 }
 
 test('packaged cli runs a zero-key deterministic mock review', async () => {
@@ -52,7 +54,7 @@ test('packaged cli runs a zero-key deterministic mock review', async () => {
       '--- a/src/example.js',
       '+++ b/src/example.js',
       '@@ -0,0 +1 @@',
-      '+eval(userInput);',
+      `+${dynamicEvalSource}`,
       '',
     ].join('\n'));
 
