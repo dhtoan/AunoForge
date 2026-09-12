@@ -61,6 +61,7 @@ test('Step Summary is concise, structured, and explicit about write mode', () =>
     reportPath: '/repo/aunoforge-review.md',
     commentEnabled: false,
     allowWrite: false,
+    annotationSummary: { eligible: 30, emitted: 25, overflow: 5 },
   });
 
   assert.match(output, /^## AunoForge Review/m);
@@ -69,6 +70,7 @@ test('Step Summary is concise, structured, and explicit about write mode', () =>
   assert.match(output, /Mode \| `read-only`/);
   assert.match(output, /Findings \| 2 verified · 1 unverified/);
   assert.match(output, /Critical 0 · High 1 · Medium 1 · Low 1 · Info 0/);
+  assert.match(output, /Annotations \| 25 emitted · 5 overflow/);
   assert.match(output, /Report \| `aunoforge-review\.md`/);
   assert.match(output, /Repository writes are disabled by default/);
   assert.equal(output.endsWith('\n'), true);
@@ -82,7 +84,9 @@ test('Step Summary reports explicit PR comment write mode only when both gates a
     reportPath: '/repo/aunoforge-review.json',
     commentEnabled: true,
     allowWrite: true,
+    annotationSummary: { eligible: 0, emitted: 0, overflow: 0 },
   });
 
   assert.match(output, /Mode \| `PR comment write enabled`/);
+  assert.match(output, /Annotations \| 0 emitted · 0 overflow/);
 });
