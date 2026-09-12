@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/cli" },
+    { "path": "./packages/core" },
+    { "path": "./packages/github" },
+    { "path": "./packages/provider-claude" },
+    { "path": "./packages/provider-codex" },
+    { "path": "./packages/provider-mock" },
+    { "path": "./packages/recipes" },
+    { "path": "./packages/reporters" }
+  ]
+}

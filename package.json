@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "clean": "find packages -type d -name dist -prune -exec rm -rf {} +",
-    "build": "tsc -b packages/*/tsconfig.json",
-    "typecheck": "tsc -b packages/*/tsconfig.json --pretty false",
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false",
     "test": "npm run build && node --test packages/*/test/*.test.mjs test/*.test.mjs",
     "lint": "node scripts/lint.mjs"
   },
