@@ -3,6 +3,9 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile, appendFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateReviewReport } from '../packages/core/dist/index.js';
+import { renderJson, renderMarkdown, renderTerminal } from '../packages/reporters/dist/index.js';
+import { renderActionStepSummary } from './action-summary.mjs';
 
 const sourceRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const actionRoot = resolve(process.env.GITHUB_ACTION_PATH || sourceRoot);
@@ -21,7 +24,7 @@ if (comment && !allowWrite) throw new Error('comment=true requires allow-write=t
 if (!['mock','codex','claude'].includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
 if (!['terminal','markdown','json'].includes(format)) throw new Error(`Unsupported format: ${format}`);
 
-const args = [cliPath, 'review', '--root', workspace, '--provider', provider, '--format', format];
+const args = [cliPath, 'review', '--root', workspace, '--provider', provider, '--format', 'json'];
 if (model) args.push('--model', model);
 
 const eventPath = process.env.GITHUB_EVENT_PATH;
@@ -38,18 +41,38 @@ function runNode(argv) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, argv, { cwd:workspace, env:process.env, stdio:['ignore','pipe','inherit'] });
     let stdout='';
-    child.stdout.on('data', (chunk) => { stdout += chunk; process.stdout.write(chunk); });
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.on('error', reject);
     child.on('close', (code) => code === 0 ? resolvePromise(stdout) : reject(new Error(`AunoForge CLI exited with ${code}`)));
   });
 }
 
-const report = await runNode(args);
+const rawReport = await runNode(args);
+const structuredReport = validateReviewReport(JSON.parse(rawReport));
+const report = format === 'json'
+  ? renderJson(structuredReport)
+  : format === 'markdown'
+    ? renderMarkdown(structuredReport)
+    : renderTerminal(structuredReport);
+process.stdout.write(report);
+
 const extension = format === 'json' ? 'json' : format === 'markdown' ? 'md' : 'txt';
 const reportPath = join(workspace, `aunoforge-review.${extension}`);
 await writeFile(reportPath, report, 'utf8');
 
 if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `report-path=${reportPath}\n`, 'utf8');
+
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const stepSummary = renderActionStepSummary({
+    report: structuredReport,
+    provider,
+    format,
+    reportPath,
+    commentEnabled: comment,
+    allowWrite,
+  });
+  await appendFile(process.env.GITHUB_STEP_SUMMARY, stepSummary, 'utf8');
+}
 
 if (comment) {
   if (!Number.isInteger(prNumber) || prNumber < 1 || !owner || !repo) throw new Error('PR comment mode requires a pull_request event.');

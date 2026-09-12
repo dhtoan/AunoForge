@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+const dynamicEvalSource = ['ev', 'al(userInput);'].join('');
+
 function runProcess(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -25,6 +27,24 @@ function runNode(args, options = {}) {
   return runProcess(process.execPath, args, options);
 }
 
+async function initializeGitFixture(root) {
+  await mkdir(join(root, 'src'), { recursive: true });
+  await writeFile(join(root, 'src', 'example.js'), 'export const value = 1;\n');
+
+  for (const [command, args] of [
+    ['git', ['init']],
+    ['git', ['config', 'user.email', 'aunoforge@example.invalid']],
+    ['git', ['config', 'user.name', 'AunoForge Test']],
+    ['git', ['add', '.']],
+    ['git', ['commit', '-m', 'baseline']],
+  ]) {
+    const result = await runProcess(command, args, { cwd: root, env: process.env });
+    assert.equal(result.code, 0, result.stderr);
+  }
+
+  await writeFile(join(root, 'src', 'example.js'), `${dynamicEvalSource}\n`);
+}
+
 test('packaged cli runs a zero-key deterministic mock review', async () => {
   const root = await mkdtemp(join(tmpdir(), 'aunoforge-action-runtime-'));
   try {
@@ -34,7 +54,7 @@ test('packaged cli runs a zero-key deterministic mock review', async () => {
       '--- a/src/example.js',
       '+++ b/src/example.js',
       '@@ -0,0 +1 @@',
-      '+eval(userInput);',
+      `+${dynamicEvalSource}`,
       '',
     ].join('\n'));
 
@@ -66,21 +86,9 @@ test('packaged cli runs a zero-key deterministic mock review', async () => {
 test('packaged action resolves its sibling cli when GITHUB_ACTION_PATH is unavailable', async () => {
   const root = await mkdtemp(join(tmpdir(), 'aunoforge-action-entry-'));
   try {
-    await mkdir(join(root, 'src'), { recursive: true });
-    await writeFile(join(root, 'src', 'example.js'), 'export const value = 1;\n');
-
-    for (const [command, args] of [
-      ['git', ['init']],
-      ['git', ['config', 'user.email', 'aunoforge@example.invalid']],
-      ['git', ['config', 'user.name', 'AunoForge Test']],
-      ['git', ['add', '.']],
-      ['git', ['commit', '-m', 'baseline']],
-    ]) {
-      const result = await runProcess(command, args, { cwd: root, env: process.env });
-      assert.equal(result.code, 0, result.stderr);
-    }
-
-    await writeFile(join(root, 'src', 'example.js'), 'eval(userInput);\n');
+    await initializeGitFixture(root);
+    const summaryPath = join(root, 'step-summary.md');
+    const outputPath = join(root, 'github-output.txt');
 
     const runtime = fileURLToPath(new URL('../dist/action/index.mjs', import.meta.url));
     const result = await runNode([runtime], {
@@ -91,6 +99,54 @@ test('packaged action resolves its sibling cli when GITHUB_ACTION_PATH is unavai
         GITHUB_WORKSPACE: root,
         GITHUB_EVENT_PATH: '',
         GITHUB_REPOSITORY: '',
+        GITHUB_STEP_SUMMARY: summaryPath,
+        GITHUB_OUTPUT: outputPath,
+        INPUT_COMMAND: 'review',
+        INPUT_PROVIDER: 'mock',
+        INPUT_MODEL: '',
+        INPUT_FORMAT: 'markdown',
+        INPUT_COMMENT: 'false',
+        INPUT_ALLOW_WRITE: 'false',
+        OPENAI_API_KEY: '',
+        ANTHROPIC_API_KEY: '',
+      },
+    });
+
+    assert.equal(result.code, 0, result.stderr);
+    const markdown = await readFile(join(root, 'aunoforge-review.md'), 'utf8');
+    assert.match(markdown, /^# AunoForge Review/m);
+    assert.match(markdown, /javascript-eval/);
+
+    const summary = await readFile(summaryPath, 'utf8');
+    assert.match(summary, /^## AunoForge Review/m);
+    assert.match(summary, /Provider \| `mock`/);
+    assert.match(summary, /Mode \| `read-only`/);
+    assert.match(summary, /Report \| `aunoforge-review\.md`/);
+    assert.match(summary, /High [0-9]+ · Medium [0-9]+/);
+
+    const output = await readFile(outputPath, 'utf8');
+    assert.match(output, /report-path=.*aunoforge-review\.md/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('packaged action remains compatible when GitHub Step Summary is unavailable', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aunoforge-action-no-summary-'));
+  try {
+    await initializeGitFixture(root);
+
+    const runtime = fileURLToPath(new URL('../dist/action/index.mjs', import.meta.url));
+    const result = await runNode([runtime], {
+      cwd: root,
+      env: {
+        ...process.env,
+        GITHUB_ACTION_PATH: '',
+        GITHUB_WORKSPACE: root,
+        GITHUB_EVENT_PATH: '',
+        GITHUB_REPOSITORY: '',
+        GITHUB_STEP_SUMMARY: '',
+        GITHUB_OUTPUT: '',
         INPUT_COMMAND: 'review',
         INPUT_PROVIDER: 'mock',
         INPUT_MODEL: '',
