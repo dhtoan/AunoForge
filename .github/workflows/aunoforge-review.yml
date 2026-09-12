@@ -12,24 +12,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./
-        id: aunoforge
+        id: aunoforge-markdown
         with:
           command: review
           provider: mock
           format: markdown
           comment: 'false'
-      - name: Generate JSON review artifact
-        shell: bash
-        run: |
-          node packages/cli/dist/bin.js review \
-            --pr "${{ github.event.pull_request.number }}" \
-            --owner "${{ github.repository_owner }}" \
-            --repo "${{ github.event.repository.name }}" \
-            --provider mock \
-            --format json > aunoforge-review.json
+      - uses: ./
+        id: aunoforge-json
+        with:
+          command: review
+          provider: mock
+          format: json
+          comment: 'false'
       - uses: actions/upload-artifact@v4
         with:
           name: aunoforge-review
           path: |
-            aunoforge-review.md
-            aunoforge-review.json
+            ${{ steps.aunoforge-markdown.outputs.report-path }}
+            ${{ steps.aunoforge-json.outputs.report-path }}
