@@ -13,7 +13,7 @@ Requirements: Node.js 20+ and pnpm 10.15.1.
 ```bash
 corepack enable
 corepack prepare pnpm@10.15.1 --activate
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
 pnpm test
 pnpm lint
@@ -21,6 +21,25 @@ pnpm typecheck
 ```
 
 New behavior follows test-first development: add the smallest failing test, verify the expected failure, add the minimal implementation, then run the focused and full suites.
+
+## GitHub Action runtime
+
+`dist/action/` is generated release/runtime code and is intentionally committed so repositories using the Action do not install AunoForge dependencies or compile TypeScript during a workflow run.
+
+When changing `scripts/action.mjs`, CLI code used by `review`, provider adapters, reporters, or their dependencies, regenerate the runtime:
+
+```bash
+pnpm build:action
+```
+
+Before opening a PR, confirm regeneration is clean:
+
+```bash
+pnpm build:action
+git diff --exit-code -- dist/action
+```
+
+CI performs the same drift check. Do not hand-edit `dist/action/index.mjs` or `dist/action/cli.mjs`.
 
 ## Recipes
 
