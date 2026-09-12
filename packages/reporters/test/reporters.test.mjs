@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renderMarkdown, renderJson, renderTerminal } from '../dist/index.js';
+import { renderMarkdown, renderJson, renderTerminal, renderReport } from '../dist/index.js';
 
 const sample = {
   schemaVersion:'1', repository:{root:'.'},
@@ -22,4 +22,10 @@ test('json output round trips as JSON', () => {
 test('terminal output includes severity and title', () => {
   assert.match(renderTerminal(sample), /MEDIUM/);
   assert.match(renderTerminal(sample), /Player resize/);
+});
+
+test('report dispatcher preserves existing formats', () => {
+  assert.equal(renderReport(sample, 'json'), renderJson(sample));
+  assert.equal(renderReport(sample, 'markdown'), renderMarkdown(sample));
+  assert.equal(renderReport(sample, 'terminal'), renderTerminal(sample));
 });

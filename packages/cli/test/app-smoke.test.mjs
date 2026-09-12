@@ -26,3 +26,13 @@ test('review command accepts a diff fixture and emits deterministic JSON finding
   const report=JSON.parse(result.output);
   assert.equal(report.findings.some((finding)=>finding.category==='javascript-eval'),true);
 });
+
+test('review command emits SARIF 2.1.0 from the same deterministic report', async()=>{
+  const root=await mkdtemp(join(tmpdir(),'aunoforge-cli-sarif-'));
+  const result=await capture(['review','--root',root,'--diff',resolve('test/fixtures/sample.diff'),'--provider','mock','--format','sarif']);
+  assert.equal(result.code,0);
+  const sarif=JSON.parse(result.output);
+  assert.equal(sarif.version,'2.1.0');
+  assert.equal(sarif.runs[0].tool.driver.name,'AunoForge');
+  assert.equal(sarif.runs[0].results.some((entry)=>entry.ruleId==='javascript-eval'),true);
+});
