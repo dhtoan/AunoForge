@@ -20,6 +20,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@aunoforge/comparison':
+        specifier: workspace:*
+        version: link:../comparison
       '@aunoforge/core':
         specifier: workspace:*
         version: link:../core
