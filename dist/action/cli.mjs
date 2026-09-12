@@ -968,6 +968,89 @@ function renderTerminal(report) {
   return lines.join("\n") + "\n";
 }
 
+// packages/reporters/dist/sarif.js
+var severityRank = {
+  info: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4
+};
+function levelFor(severity) {
+  if (severity === "critical" || severity === "high")
+    return "error";
+  if (severity === "medium")
+    return "warning";
+  return "note";
+}
+function verifiedLocation(finding2) {
+  return finding2.location?.verified === true && Number.isInteger(finding2.location.startLine) && (finding2.location.startLine ?? 0) > 0;
+}
+function stableFile(file) {
+  return file.replace(/\\/g, "/");
+}
+function compareResults(a, b) {
+  return severityRank[b.severity] - severityRank[a.severity] || stableFile(a.location.file).localeCompare(stableFile(b.location.file)) || a.location.startLine - b.location.startLine || a.category.localeCompare(b.category) || a.id.localeCompare(b.id);
+}
+function renderSarif(report) {
+  const eligible = report.findings.filter(verifiedLocation).sort(compareResults);
+  const categories = [...new Set(eligible.map((finding2) => finding2.category))].sort();
+  const rules2 = categories.map((category) => {
+    const finding2 = eligible.find((candidate) => candidate.category === category);
+    return {
+      id: category,
+      name: category,
+      shortDescription: { text: finding2.title }
+    };
+  });
+  const results = eligible.map((finding2) => {
+    const firstEvidence = finding2.evidence[0];
+    const message = firstEvidence ? `${finding2.title} \u2014 ${firstEvidence}` : `${finding2.title} \u2014 ${finding2.explanation}`;
+    const region = {
+      startLine: finding2.location.startLine
+    };
+    if (finding2.location.endLine !== void 0)
+      region.endLine = finding2.location.endLine;
+    return {
+      ruleId: finding2.category,
+      level: levelFor(finding2.severity),
+      message: { text: message },
+      locations: [{
+        physicalLocation: {
+          artifactLocation: { uri: stableFile(finding2.location.file) },
+          region
+        }
+      }],
+      properties: {
+        aunoforgeFindingId: finding2.id,
+        aunoforgeSource: finding2.source,
+        confidence: finding2.confidence,
+        evidence: finding2.evidence
+      }
+    };
+  });
+  return `${JSON.stringify({
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [{
+      tool: { driver: { name: "AunoForge", rules: rules2 } },
+      results
+    }]
+  }, null, 2)}
+`;
+}
+
+// packages/reporters/dist/reporter.js
+function renderReport(report, format) {
+  if (format === "json")
+    return renderJson(report);
+  if (format === "markdown")
+    return renderMarkdown(report);
+  if (format === "sarif")
+    return renderSarif(report);
+  return renderTerminal(report);
+}
+
 // packages/cli/dist/git.js
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -1013,14 +1096,14 @@ var rules = [
   }
 ];
 function finding(rule, file, line) {
-  const stableFile = file.split(sep2).join("/");
+  const stableFile2 = file.split(sep2).join("/");
   return {
-    id: `deterministic:${rule.category}:${stableFile}:${line}`,
+    id: `deterministic:${rule.category}:${stableFile2}:${line}`,
     severity: "high",
     category: rule.category,
     title: rule.title,
     evidence: [rule.evidence],
-    location: { file: stableFile, startLine: line, endLine: line, verified: true },
+    location: { file: stableFile2, startLine: line, endLine: line, verified: true },
     explanation: rule.explanation,
     verification: ["Inspect the matched line and confirm the risky primitive is necessary and safely constrained."],
     confidence: 0.99,
@@ -1112,11 +1195,7 @@ async function review(options) {
   return normalizeReviewReport(repository, verified);
 }
 function renderReview(report, format = "terminal") {
-  if (format === "markdown")
-    return renderMarkdown(report);
-  if (format === "json")
-    return renderJson(report);
-  return renderTerminal(report);
+  return renderReport(report, format);
 }
 
 // packages/cli/dist/release.js
@@ -1514,6 +1593,12 @@ function formatValue(args) {
     throw new Error("--format must be terminal, markdown, or json");
   return value;
 }
+function reviewFormatValue(args) {
+  const value = argValue(args, "--format") ?? "terminal";
+  if (value !== "terminal" && value !== "markdown" && value !== "json" && value !== "sarif")
+    throw new Error("--format must be terminal, markdown, json, or sarif");
+  return value;
+}
 function required(args, name) {
   const value = argValue(args, name);
   if (!value)
@@ -1542,7 +1627,7 @@ function providerFromArgs(args) {
   throw new Error(`Unknown provider: ${id}`);
 }
 function githubFromEnv() {
-  return new GitHubReader({ token: process.env.GITHUB_TOKEN });
+  return new GitHubReader({ token: process.env.GITHUB_TOKEN, apiBase: process.env.GITHUB_API_URL });
 }
 async function runCli(argv = process.argv.slice(2)) {
   const [command, ...args] = argv;
@@ -1578,7 +1663,7 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     return 0;
   }
   if (command === "review") {
-    const provider = providerFromArgs(args), format = formatValue(args), prValue = argValue(args, "--pr"), audit = new AuditLogger(resolve3(root, ".aunoforge", "audit.log"));
+    const provider = providerFromArgs(args), format = reviewFormatValue(args), prValue = argValue(args, "--pr"), audit = new AuditLogger(resolve3(root, ".aunoforge", "audit.log"));
     const diffPath = argValue(args, "--diff");
     const suppliedDiff = diffPath ? await readFile7(resolve3(diffPath), "utf8") : void 0;
     if (prValue && suppliedDiff !== void 0)

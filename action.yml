@@ -15,7 +15,7 @@ inputs:
     required: false
     default: ''
   format:
-    description: "Report format: markdown, json, or terminal."
+    description: "Report format: markdown, json, terminal, or sarif."
     required: false
     default: markdown
   comment:
