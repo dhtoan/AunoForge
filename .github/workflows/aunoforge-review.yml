@@ -1,0 +1,35 @@
+name: AunoForge Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: aunoforge
+        with:
+          command: review
+          provider: mock
+          format: markdown
+          comment: 'false'
+      - name: Generate JSON review artifact
+        shell: bash
+        run: |
+          node packages/cli/dist/bin.js review \
+            --pr "${{ github.event.pull_request.number }}" \
+            --owner "${{ github.repository_owner }}" \
+            --repo "${{ github.event.repository.name }}" \
+            --provider mock \
+            --format json > aunoforge-review.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aunoforge-review
+          path: |
+            aunoforge-review.md
+            aunoforge-review.json

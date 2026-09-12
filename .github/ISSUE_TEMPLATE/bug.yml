@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible AunoForge defect.
+title: "bug: "
+labels: [bug, needs-reproduction]
+body:
+  - type: markdown
+    attributes:
+      value: Please remove credentials and private repository content before submitting.
+  - type: input
+    id: version
+    attributes:
+      label: AunoForge version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

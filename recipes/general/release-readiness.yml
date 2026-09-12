@@ -1,0 +1,15 @@
+{
+  "schema": "aunoforge.dev/recipe/v1",
+  "id": "general/release-readiness",
+  "name": "Release Readiness",
+  "version": 1,
+  "trust": {"level": "builtin"},
+  "applies_to": ["generic"],
+  "inputs": ["git_history"],
+  "passes": ["compatibility","breaking-changes"],
+  "checks": ["release.metadata"],
+  "tools": ["git.history"],
+  "permissions": {"shell": "deny","network": "deny"},
+  "requires": {"provider": {"structuredOutput": true}},
+  "output": {"contract": "review-report/v1"}
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "aunoforge.dev/recipe/v1",
+  "id": "wordpress/plugin-review",
+  "name": "WordPress Plugin Review",
+  "version": 1,
+  "trust": {"level": "builtin"},
+  "applies_to": ["wordpress-plugin"],
+  "inputs": ["git_diff"],
+  "passes": ["correctness","security","compatibility","test-coverage"],
+  "checks": ["wordpress.nonce","wordpress.escape-output","wordpress.sanitize-input"],
+  "tools": ["filesystem.read","git.diff"],
+  "permissions": {"shell": "deny","network": "deny"},
+  "requires": {"provider": {"structuredOutput": true}},
+  "output": {"contract": "review-report/v1"}
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "aunoforge.dev/recipe/v1",
+  "id": "wordpress/woocommerce-compat",
+  "name": "WooCommerce Compatibility",
+  "version": 1,
+  "trust": {"level": "builtin"},
+  "applies_to": ["wordpress-plugin"],
+  "inputs": ["git_diff"],
+  "passes": ["compatibility","regression"],
+  "checks": ["woocommerce.compatibility"],
+  "tools": ["filesystem.read","git.diff"],
+  "permissions": {"shell": "deny","network": "deny"},
+  "requires": {"provider": {"structuredOutput": true}},
+  "output": {"contract": "review-report/v1"}
+}

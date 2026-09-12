@@ -1,0 +1,22 @@
+name: Recipe proposal
+description: Propose a new ecosystem or maintenance recipe.
+title: "recipe: "
+labels: [recipe, help-wanted]
+body:
+  - type: input
+    id: ecosystem
+    attributes:
+      label: Ecosystem / framework
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Maintenance workflow
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Deterministic checks or fixtures
+      description: Explain which conditions can be tested without relying on model prose.

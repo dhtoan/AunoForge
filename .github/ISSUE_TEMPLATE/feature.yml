@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a maintainer-focused improvement.
+title: "enhancement: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Maintainer problem
+      description: Describe the recurring maintenance work, not only the desired UI.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Trust / permission considerations
+      description: Note any shell, network, secrets, write, or GitHub permission implications.

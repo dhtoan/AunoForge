@@ -1,0 +1,15 @@
+{
+  "schema": "aunoforge.dev/recipe/v1",
+  "id": "python/django-security",
+  "name": "Django Security",
+  "version": 1,
+  "trust": {"level": "builtin"},
+  "applies_to": ["python","django"],
+  "inputs": ["git_diff"],
+  "passes": ["security"],
+  "checks": ["django.csrf","django.sql"],
+  "tools": ["filesystem.read","git.diff"],
+  "permissions": {"shell": "deny","network": "deny"},
+  "requires": {"provider": {"structuredOutput": true}},
+  "output": {"contract": "review-report/v1"}
+}
