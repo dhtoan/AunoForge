@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 
-const exampleUrl = new URL('../docs/examples/aunoforge-review.yml', import.meta.url);
+const exampleUrl = new URL('../docs/examples/aunoforge-review-v0.2.yml', import.meta.url);
 const workflowUrl = new URL('../.github/workflows/aunoforge-review.yml', import.meta.url);
 const gettingStartedUrl = new URL('../docs/getting-started.md', import.meta.url);
 const reviewCommandUrl = new URL('../docs/commands/review.md', import.meta.url);
 
-test('workflow example keeps artifact upload optional and independent from PR comments', async () => {
+test('v0.2 workflow example keeps artifact upload optional and independent from PR comments', async () => {
   const source = await readFile(exampleUrl, 'utf8');
   assert.match(source, /id:\s+aunoforge/);
   assert.match(source, /comment:\s*['"]false['"]/);
@@ -58,7 +58,7 @@ test('incremental baseline docs define the offline local-file boundary and all f
   assert.match(combined, /artifact.*orchestrat.*outside AunoForge core|outside AunoForge core.*artifact/i);
 });
 
-test('workflow example can opt into a local baseline without adding write permissions', async () => {
+test('v0.2 workflow example can opt into a local baseline without adding write permissions', async () => {
   const source = await readFile(exampleUrl, 'utf8');
   assert.match(source, /baseline:\s+\.aunoforge\/baseline\.json/);
   assert.match(source, /prior AunoForge JSON|previous AunoForge JSON|baseline/i);
