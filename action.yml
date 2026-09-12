@@ -3,7 +3,7 @@ description: Evidence-aware, human-controlled open-source maintenance review.
 author: AunoForge contributors
 inputs:
   command:
-    description: AunoForge command. v0.1 supports review.
+    description: AunoForge command. v0.2 supports review.
     required: false
     default: review
   provider:
@@ -29,26 +29,6 @@ inputs:
 outputs:
   report-path:
     description: Absolute path to the generated review report.
-    value: ${{ steps.review.outputs.report-path }}
 runs:
-  using: composite
-  steps:
-    - name: Build AunoForge action runtime
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      run: |
-        corepack enable
-        corepack prepare pnpm@10.15.1 --activate
-        pnpm install --no-frozen-lockfile
-        pnpm build
-    - name: Run AunoForge review
-      id: review
-      shell: bash
-      env:
-        INPUT_COMMAND: ${{ inputs.command }}
-        INPUT_PROVIDER: ${{ inputs.provider }}
-        INPUT_MODEL: ${{ inputs.model }}
-        INPUT_FORMAT: ${{ inputs.format }}
-        INPUT_COMMENT: ${{ inputs.comment }}
-        INPUT_ALLOW_WRITE: ${{ inputs.allow-write }}
-      run: node "${GITHUB_ACTION_PATH}/scripts/action.mjs"
+  using: node20
+  main: dist/action/index.mjs
