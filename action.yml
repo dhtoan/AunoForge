@@ -18,6 +18,10 @@ inputs:
     description: "Report format: markdown, json, terminal, or sarif."
     required: false
     default: markdown
+  baseline:
+    description: Optional path to a prior AunoForge JSON report for incremental comparison.
+    required: false
+    default: ''
   comment:
     description: Post the generated report to the pull request.
     required: false

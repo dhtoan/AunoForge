@@ -17,17 +17,19 @@ export function renderActionStepSummary({
   reportPath,
   commentEnabled,
   allowWrite,
+  incrementalSummary,
   annotationSummary = { eligible: 0, emitted: 0, overflow: 0 },
 }) {
   const { verified, unverified } = getFindingVerificationCounts(report);
   const mode = commentEnabled && allowWrite ? 'PR comment write enabled' : 'read-only';
   const severity = report.summary;
-  return [
-    '## AunoForge Review',
-    '',
-    '| Field | Result |',
-    '| --- | --- |',
+  const rows = [
     `| Recommendation | \`${report.recommendation}\` |`,
+  ];
+  if (incrementalSummary) {
+    rows.push(`| Incremental | New ${incrementalSummary.new} · Regressed ${incrementalSummary.regressed} · Persistent ${incrementalSummary.persistent} · Resolved ${incrementalSummary.resolved} |`);
+  }
+  rows.push(
     `| Provider | \`${provider}\` |`,
     `| Format | \`${format}\` |`,
     `| Mode | \`${mode}\` |`,
@@ -35,6 +37,13 @@ export function renderActionStepSummary({
     `| Severity | Critical ${severity.critical} · High ${severity.high} · Medium ${severity.medium} · Low ${severity.low} · Info ${severity.info} |`,
     `| Annotations | ${annotationSummary.emitted} emitted · ${annotationSummary.overflow} overflow |`,
     `| Report | \`${basename(reportPath)}\` |`,
+  );
+  return [
+    '## AunoForge Review',
+    '',
+    '| Field | Result |',
+    '| --- | --- |',
+    ...rows,
     '',
     '> Repository writes are disabled by default. PR comments require both `comment=true` and `allow-write=true` plus the required GitHub permission.',
     '',
