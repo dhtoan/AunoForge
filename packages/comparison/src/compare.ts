@@ -37,15 +37,16 @@ function canonicalize(findings: Finding[]): Map<string, Finding> {
   return result;
 }
 
+function isIncrementalReviewReport(baseline: BaselineReport): baseline is IncrementalReviewReport {
+  return "kind" in baseline && baseline.kind === "incremental-review";
+}
+
 function baselineCurrent(baseline: BaselineReport): ReviewReport {
-  return "kind" in baseline && baseline.kind === "incremental-review" ? baseline.current : baseline;
+  return isIncrementalReviewReport(baseline) ? baseline.current : baseline;
 }
 
 function previousResolvedFingerprints(baseline: BaselineReport): Set<string> {
-  if ("kind" in baseline && baseline.kind === "incremental-review") {
-    return new Set(baseline.resolvedFingerprints);
-  }
-  return new Set();
+  return isIncrementalReviewReport(baseline) ? new Set(baseline.resolvedFingerprints) : new Set();
 }
 
 function findingLine(finding: Finding): number {
