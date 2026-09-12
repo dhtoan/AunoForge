@@ -1,4 +1,9 @@
 {
-  "extends":"../../tsconfig.base.json","compilerOptions":{"outDir":"dist","rootDir":"src","composite":true},
-  "references":[{"path":"../core"}],"include":["src/**/*.ts"]
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": "src", "composite": true },
+  "references": [
+    { "path": "../comparison" },
+    { "path": "../core" }
+  ],
+  "include": ["src/**/*.ts"]
 }

@@ -1,4 +1,12 @@
 {
-  "name":"@aunoforge/reporters","version":"0.1.0","type":"module","main":"./dist/index.js","types":"./dist/index.d.ts","exports":"./dist/index.js",
-  "dependencies":{"@aunoforge/core":"workspace:*"}
+  "name": "@aunoforge/reporters",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": "./dist/index.js",
+  "dependencies": {
+    "@aunoforge/comparison": "workspace:*",
+    "@aunoforge/core": "workspace:*"
+  }
 }

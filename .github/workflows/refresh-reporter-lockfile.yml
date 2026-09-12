@@ -1,0 +1,36 @@
+name: Refresh Reporter Lockfile
+
+on:
+  push:
+    branches:
+      - feat/v0.2-incremental-evidence
+    paths:
+      - .github/workflows/refresh-reporter-lockfile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.15.1 --activate
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - run: node --test packages/reporters/test/*.test.mjs packages/comparison/test/*.test.mjs
+      - name: Commit lockfile
+        run: |
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already matches workspace metadata."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: link comparison into reporters"
+          git push origin HEAD:feat/v0.2-incremental-evidence
