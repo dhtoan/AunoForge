@@ -15,18 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Optional: restore or download a prior AunoForge JSON report into this path.
-      # Artifact retention/download orchestration stays outside AunoForge core.
-      - uses: dhtoan/AunoForge@main
+      - uses: dhtoan/AunoForge@v0.1.0
         id: aunoforge
         with:
-          command: review
           provider: mock
-          format: sarif
-          baseline: .aunoforge/baseline.json
+          format: markdown
           comment: 'false'
 
-      # Optional: persist the generated SARIF report. Step Summary and workflow annotations work without this.
+      # Optional: persist the stable report without enabling PR comments.
       - name: Upload AunoForge report (optional)
         uses: actions/upload-artifact@v4
         with:
