@@ -1,0 +1,29 @@
+name: Package Step Summary Action Runtime
+
+on:
+  push:
+    branches:
+      - feat/v0.2-step-summary-artifact
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.15.1 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm build:action
+      - run: node --test test/action-summary.test.mjs test/action-runtime.test.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aunoforge-step-summary-runtime
+          path: dist/action
+          if-no-files-found: error
