@@ -23,9 +23,10 @@ function relativeTargets(markdown) {
   return targets;
 }
 
-test('README presents first success and all relative markdown links resolve', async()=>{
+test('README presents the current hero, first success, and valid relative links', async()=>{
   const readme=await readFile('README.md','utf8');
-  assert.match(readme,/AunoForge — AI-assisted maintenance you can verify\./);
+  assert.match(readme,/^# ⚒️ AunoForge$/m);
+  assert.match(readme,/^### AI-assisted maintenance you can verify\.$/m);
   assert.match(readme,/npx aunoforge doctor/);
   assert.match(readme,/npx aunoforge review/);
   const files=['README.md',...(await markdownFiles('docs')),'CONTRIBUTING.md','SECURITY.md','ROADMAP.md','OSS-EVIDENCE.md'];
