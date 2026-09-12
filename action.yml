@@ -30,5 +30,5 @@ outputs:
   report-path:
     description: Absolute path to the generated review report.
 runs:
-  using: node20
+  using: node24
   main: dist/action/index.mjs
