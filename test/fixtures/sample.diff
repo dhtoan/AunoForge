@@ -1,0 +1,7 @@
+diff --git a/src/danger.js b/src/danger.js
+index 1111111..2222222 100644
+--- a/src/danger.js
++++ b/src/danger.js
+@@ -1 +1,2 @@
+ export const safe = 1;
++export const calculated = eval(userInput);

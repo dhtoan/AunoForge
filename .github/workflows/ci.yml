@@ -1,0 +1,50 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.15.1 --activate
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Validate builtin recipes
+        shell: bash
+        run: |
+          while IFS= read -r recipe; do
+            node packages/cli/dist/bin.js recipe validate "$recipe" --root . >/dev/null
+          done < <(find recipes -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
+  platform-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.15.1 --activate
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - run: node packages/cli/dist/bin.js --help
+      - run: node packages/cli/dist/bin.js recipes list --root .

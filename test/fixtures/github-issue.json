@@ -1,0 +1,11 @@
+{
+  "issue": {
+    "number": 1,
+    "title": "Video player shrinks after opening comments",
+    "body": "On mobile, open comments and go to the next video. The player becomes narrow.",
+    "url": "https://github.com/example/project/issues/1",
+    "labels": ["bug"],
+    "author": "fixture-user"
+  },
+  "duplicates": []
+}

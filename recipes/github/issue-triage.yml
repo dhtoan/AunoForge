@@ -1,0 +1,15 @@
+{
+  "schema": "aunoforge.dev/recipe/v1",
+  "id": "github/issue-triage",
+  "name": "GitHub Issue Triage",
+  "version": 1,
+  "trust": {"level": "builtin"},
+  "applies_to": ["generic"],
+  "inputs": ["github_issue"],
+  "passes": ["classification","severity"],
+  "checks": ["issue.required-fields"],
+  "tools": ["github.issue.read"],
+  "permissions": {"shell": "deny","network": "deny"},
+  "requires": {"provider": {"structuredOutput": true}},
+  "output": {"contract": "review-report/v1"}
+}

@@ -1,0 +1,10 @@
+.worktrees/
+node_modules/
+packages/*/dist/
+.aunoforge/audit.log
+*.tsbuildinfo
+.env
+.env.*
+
+# Generated local action reports
+/aunoforge-review.*
