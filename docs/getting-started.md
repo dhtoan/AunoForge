@@ -59,7 +59,7 @@ For pull requests, AunoForge can emit GitHub workflow annotations for evidence-v
 
 Use `--format sarif` in the CLI or `format: sarif` in the Action to produce a SARIF 2.1.0 report. SARIF is a portable report surface only: AunoForge does not automatically upload SARIF to GitHub code scanning, and enabling SARIF does not grant additional repository permissions.
 
-The full report remains available through the Action's `report-path` output. Artifact upload is optional and stays at the workflow layer with GitHub's maintained `actions/upload-artifact@v4`; it does not require enabling AunoForge PR comments. See [`examples/aunoforge-review.yml`](examples/aunoforge-review.yml).
+The full report remains available through the Action's `report-path` output. Artifact upload is optional and stays at the workflow layer with GitHub's maintained `actions/upload-artifact@v4`; it does not require enabling AunoForge PR comments. See the explicitly labeled current-main / v0.2 example at [`examples/aunoforge-review-v0.2.yml`](examples/aunoforge-review-v0.2.yml).
 
 ## Next
 
