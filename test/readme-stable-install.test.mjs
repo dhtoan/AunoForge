@@ -18,6 +18,16 @@ test('README leads with a zero-key proof and pins public Action usage to v0.1.0'
   assert.doesNotMatch(readme, new RegExp(movingRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
+test('README shows output verified from the real v0.1.0 stable smoke artifact', async () => {
+  const readme = await readFile('README.md', 'utf8');
+
+  assert.match(readme, /### Verified v0\.1\.0 output/);
+  assert.match(readme, /Recommendation:\s*\*\*approve\*\*/);
+  assert.match(readme, /Critical:\s*0\s*·\s*High:\s*0\s*·\s*Medium:\s*0\s*·\s*Low:\s*0\s*·\s*Info:\s*0/);
+  assert.match(readme, /No findings\./);
+  assert.match(readme, /stable smoke/i);
+});
+
 test('maintained user-facing Action example is compatible with the v0.1.0 interface', async () => {
   const example = await readFile('docs/examples/aunoforge-review.yml', 'utf8');
 
