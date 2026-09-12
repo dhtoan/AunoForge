@@ -1,4 +1,18 @@
 {
-  "name":"aunoforge","version":"0.1.0","type":"module","main":"./dist/index.js","types":"./dist/index.d.ts","bin":{"aunoforge":"./dist/bin.js"},
-  "dependencies":{"@aunoforge/core":"workspace:*","@aunoforge/recipes":"workspace:*","@aunoforge/reporters":"workspace:*","@aunoforge/github":"workspace:*","@aunoforge/provider-mock":"workspace:*","@aunoforge/provider-codex":"workspace:*","@aunoforge/provider-claude":"workspace:*"}
+  "name": "aunoforge",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": { "aunoforge": "./dist/bin.js" },
+  "dependencies": {
+    "@aunoforge/comparison": "workspace:*",
+    "@aunoforge/core": "workspace:*",
+    "@aunoforge/recipes": "workspace:*",
+    "@aunoforge/reporters": "workspace:*",
+    "@aunoforge/github": "workspace:*",
+    "@aunoforge/provider-mock": "workspace:*",
+    "@aunoforge/provider-codex": "workspace:*",
+    "@aunoforge/provider-claude": "workspace:*"
+  }
 }
