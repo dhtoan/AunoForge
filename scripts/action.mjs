@@ -3,8 +3,8 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile, appendFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateReviewReport } from '@aunoforge/core';
-import { renderJson, renderMarkdown, renderTerminal } from '@aunoforge/reporters';
+import { validateReviewReport } from '../packages/core/dist/index.js';
+import { renderJson, renderMarkdown, renderTerminal } from '../packages/reporters/dist/index.js';
 import { renderActionStepSummary } from './action-summary.mjs';
 
 const sourceRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
