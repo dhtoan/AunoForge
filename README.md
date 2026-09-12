@@ -58,6 +58,20 @@ jobs:
 
 No API key is required. The stable Action generates a Markdown review report without enabling repository writes. A maintained CI smoke workflow runs this exact release tag, and the full copy-paste file lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).
 
+### Verified v0.1.0 output
+
+The maintained [stable smoke workflow](.github/workflows/stable-action-smoke.yml) ran `dhtoan/AunoForge@v0.1.0` with `provider: mock` and produced this report:
+
+```text
+# AunoForge Review
+
+Recommendation: **approve**
+
+Critical: 0 · High: 0 · Medium: 0 · Low: 0 · Info: 0
+
+No findings.
+```
+
 > **Stable vs. current main:** `v0.1.0` is the published stable Action. SARIF, incremental baselines, Step Summary, and the prebuilt Node 24 runtime are current-main / upcoming v0.2 capabilities and are intentionally documented separately in [the v0.2 example](docs/examples/aunoforge-review-v0.2.yml).
 
 ---
