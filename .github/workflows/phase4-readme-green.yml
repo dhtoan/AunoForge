@@ -22,6 +22,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           path = Path('README.md')
           text = path.read_text()
@@ -30,42 +31,43 @@ jobs:
           if marker not in text:
               raise SystemExit('README hero marker not found')
 
-          proof = '''---
+          proof = dedent('''\
+          ---
 
-## ⚡ 60-second proof
+          ## ⚡ 60-second proof
 
-Want the shortest proof path? Copy this workflow into `.github/workflows/aunoforge.yml`. It uses the released **v0.1.0** Action, the zero-key `mock` provider, read-only permissions, and no PR comments. GitHub runner startup time varies.
+          Want the shortest proof path? Copy this workflow into `.github/workflows/aunoforge.yml`. It uses the released **v0.1.0** Action, the zero-key `mock` provider, read-only permissions, and no PR comments. GitHub runner startup time varies.
 
-```yaml
-name: AunoForge Proof
+          ```yaml
+          name: AunoForge Proof
 
-on:
-  pull_request:
+          on:
+            pull_request:
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+          permissions:
+            contents: read
+            issues: read
+            pull-requests: read
 
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dhtoan/AunoForge@v0.1.0
-        with:
-          provider: mock
-          format: markdown
-          comment: 'false'
-```
+          jobs:
+            review:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: dhtoan/AunoForge@v0.1.0
+                  with:
+                    provider: mock
+                    format: markdown
+                    comment: 'false'
+          ```
 
-No API key is required. The stable Action generates a Markdown review report without enabling repository writes. A maintained CI smoke workflow runs this exact release tag, and the full copy-paste file lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).
+          No API key is required. The stable Action generates a Markdown review report without enabling repository writes. A maintained CI smoke workflow runs this exact release tag, and the full copy-paste file lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).
 
-> **Stable vs. current main:** `v0.1.0` is the published stable Action. SARIF, incremental baselines, Step Summary, and the prebuilt Node 24 runtime are current-main / upcoming v0.2 capabilities and are intentionally documented separately in [the v0.2 example](docs/examples/aunoforge-review-v0.2.yml).
+          > **Stable vs. current main:** `v0.1.0` is the published stable Action. SARIF, incremental baselines, Step Summary, and the prebuilt Node 24 runtime are current-main / upcoming v0.2 capabilities and are intentionally documented separately in [the v0.2 example](docs/examples/aunoforge-review-v0.2.yml).
 
----
+          ---
 
-## Why AunoForge?'''
+          ## Why AunoForge?''')
           text = text.replace(marker, proof, 1)
 
           old_table = '| ⚙️ **GitHub Action** | `uses: dhtoan/AunoForge@main` | Runs AunoForge review in CI | `comment: false` |'
