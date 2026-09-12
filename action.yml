@@ -7,7 +7,7 @@ inputs:
     required: false
     default: review
   provider:
-    description: Provider adapter: mock, codex, or claude.
+    description: "Provider adapter: mock, codex, or claude."
     required: false
     default: mock
   model:
@@ -15,7 +15,7 @@ inputs:
     required: false
     default: ''
   format:
-    description: Report format: markdown, json, or terminal.
+    description: "Report format: markdown, json, or terminal."
     required: false
     default: markdown
   comment:
