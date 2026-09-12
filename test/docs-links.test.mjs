@@ -15,7 +15,8 @@ async function markdownFiles(dir) {
 
 function relativeTargets(markdown) {
   const targets=[];
-  for (const match of markdown.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+  const prose=markdown.replace(/```[\s\S]*?```/g,'');
+  for (const match of prose.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
     const raw=match[1].trim();
     if(!raw || raw.startsWith('#') || /^(?:https?:|mailto:)/i.test(raw)) continue;
     targets.push(raw.split('#')[0].split('?')[0]);
