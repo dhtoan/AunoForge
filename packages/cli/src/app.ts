@@ -18,6 +18,7 @@ import { loadIssueFixtureReader } from "./fixture-github.js";
 export const commands=["init","doctor","triage","reproduce","review","release","recipes","recipe"] as const;
 function argValue(args:string[],name:string):string|undefined{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;}
 function formatValue(args:string[]):"terminal"|"markdown"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json")throw new Error("--format must be terminal, markdown, or json");return value;}
+function reviewFormatValue(args:string[]):"terminal"|"markdown"|"json"|"sarif"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json"&&value!=="sarif")throw new Error("--format must be terminal, markdown, json, or sarif");return value;}
 function required(args:string[],name:string):string{const value=argValue(args,name);if(!value)throw new Error(`${name} is required`);return value;}
 function providerFromArgs(args:string[]):AunoForgeProvider{
   const id=argValue(args,"--provider")??"mock";
@@ -50,7 +51,7 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     return 0;
   }
   if(command==="review"){
-    const provider=providerFromArgs(args), format=formatValue(args), prValue=argValue(args,"--pr"), audit=new AuditLogger(resolve(root,".aunoforge","audit.log"));
+    const provider=providerFromArgs(args), format=reviewFormatValue(args), prValue=argValue(args,"--pr"), audit=new AuditLogger(resolve(root,".aunoforge","audit.log"));
     const diffPath=argValue(args,"--diff");
     const suppliedDiff=diffPath?await readFile(resolve(diffPath),"utf8"):undefined;
     if(prValue&&suppliedDiff!==undefined)throw new Error("--pr and --diff cannot be used together");
