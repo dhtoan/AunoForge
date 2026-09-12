@@ -1,3 +1,5 @@
+# Unreleased v0.2/current-main example. This file intentionally follows @main.
+# For the stable v0.1.0 copy-paste workflow, use docs/examples/aunoforge-review.yml.
 name: AunoForge Review
 
 on:
