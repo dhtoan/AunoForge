@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/cli" },
+    { "path": "./packages/comparison" },
     { "path": "./packages/core" },
     { "path": "./packages/github" },
     { "path": "./packages/provider-claude" },
