@@ -27,7 +27,7 @@ jobs:
           comment: 'false'
       - uses: actions/upload-artifact@v4
         with:
-          name: aunoforge-review
+          name: aunoforge-report
           path: |
             ${{ steps.aunoforge-markdown.outputs.report-path }}
             ${{ steps.aunoforge-json.outputs.report-path }}
