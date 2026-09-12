@@ -24,6 +24,8 @@ New behavior follows test-first development: add the smallest failing test, veri
 
 ## GitHub Action runtime
 
+The local CLI supports Node.js 20+ and is tested on Node 20, 22, and 24. The packaged GitHub JavaScript Action declares the current GitHub-hosted Node 24 runtime independently; changing the Action host runtime does not raise the CLI's Node.js version floor.
+
 `dist/action/` is generated release/runtime code and is intentionally committed so repositories using the Action do not install AunoForge dependencies or compile TypeScript during a workflow run.
 
 When changing `scripts/action.mjs`, CLI code used by `review`, provider adapters, reporters, or their dependencies, regenerate the runtime:
