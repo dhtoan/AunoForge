@@ -12,7 +12,6 @@ Without handing repository control to an AI model.
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dhtoan/AunoForge/blob/main/CONTRIBUTING.md)
-[![Neon OSS Program](https://img.shields.io/badge/Neon%20OSS%20Program-Learn%20%2F%20Apply-00E599?style=flat)](https://get.neon.com/4eCjZDz)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/dhtoan)
 [![GitHub Stars](https://img.shields.io/github/stars/dhtoan/AunoForge.svg?style=social&label=Star)](https://github.com/dhtoan/AunoForge/stargazers)
 
