@@ -1,0 +1,33 @@
+name: Package Action Runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/v0.2-sarif-annotations
+    paths:
+      - .github/workflows/package-action-runtime.yml
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.15.1 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm build:action
+      - name: Verify packaged runtime
+        run: node --test test/action-manifest.test.mjs test/action-annotations.test.mjs test/action-summary.test.mjs test/action-runtime.test.mjs packages/reporters/test/*.test.mjs packages/cli/test/*.test.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: action-runtime-sarif-annotations
+          path: dist/action
+          retention-days: 1
