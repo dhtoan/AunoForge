@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
-import { createApprovalToken, type AunoForgeProvider } from "@aunoforge/core";
+import { createApprovalToken, OsvAdvisoryAdapter, type AunoForgeProvider } from "@aunoforge/core";
 import { compareReviewReports, validateBaselineReport } from "@aunoforge/comparison";
 import { GitHubReader } from "@aunoforge/github";
 import { MockProvider } from "@aunoforge/provider-mock";
@@ -23,6 +23,7 @@ function argValue(args:string[],name:string):string|undefined{const i=args.index
 function formatValue(args:string[]):"terminal"|"markdown"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json")throw new Error("--format must be terminal, markdown, or json");return value;}
 function reviewFormatValue(args:string[]):"terminal"|"markdown"|"json"|"sarif"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json"&&value!=="sarif")throw new Error("--format must be terminal, markdown, json, or sarif");return value;}
 function securityFormatValue(args:string[]):"terminal"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="json")throw new Error("--format must be terminal or json");return value;}
+function securityAdvisoryValue(args:string[]):"osv"|undefined{const value=argValue(args,"--advisory");if(value===undefined)return undefined;if(value!=="osv")throw new Error("--advisory must be osv");return value;}
 function required(args:string[],name:string):string{const value=argValue(args,name);if(!value)throw new Error(`${name} is required`);return value;}
 function providerFromArgs(args:string[]):AunoForgeProvider{
   const id=argValue(args,"--provider")??"mock";
@@ -47,7 +48,9 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
   if(command==="doctor"){console.log(JSON.stringify(await runDoctor(root),null,2));return 0;}
   if(command==="security"){
     const format=securityFormatValue(args);
-    console.log(renderSecurity(await runSecurity(root),format).trimEnd());
+    const advisory=securityAdvisoryValue(args);
+    const report=await runSecurity(root,advisory==="osv"?{advisoryAdapter:new OsvAdvisoryAdapter()}:{});
+    console.log(renderSecurity(report,format).trimEnd());
     return 0;
   }
   if(command==="triage"||command==="reproduce"){
