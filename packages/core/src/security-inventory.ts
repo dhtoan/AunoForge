@@ -41,9 +41,20 @@ const scopes: ReadonlyArray<{
   { key: "devDependencies", scope: "development" },
 ];
 
-const pnpmScopeByKey = new Map<string, PackageJsonDependencyScope>(
-  scopes.map(({ key, scope }) => [key, scope]),
-);
+function pnpmScope(key: string): PackageJsonDependencyScope | undefined {
+  switch (key) {
+    case "dependencies":
+      return "runtime";
+    case "optionalDependencies":
+      return "optional";
+    case "peerDependencies":
+      return "peer";
+    case "devDependencies":
+      return "development";
+    default:
+      return undefined;
+  }
+}
 
 function dependencyMap(manifest: Record<string, unknown>, key: string): DependencyMap {
   const value = manifest[key];
@@ -290,7 +301,7 @@ export function parsePnpmLockInventory(
     const scopeMatch = line.match(/^    (dependencies|optionalDependencies|peerDependencies|devDependencies):\s*(?:\{\})?\s*$/);
     if (scopeMatch) {
       flushDependency();
-      scope = pnpmScopeByKey.get(scopeMatch[1]!);
+      scope = pnpmScope(scopeMatch[1]!);
       continue;
     }
 
