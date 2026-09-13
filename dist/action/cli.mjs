@@ -2559,11 +2559,11 @@ function validateProjectConfig(value) {
     config.format = value.format;
   return config;
 }
-function resolveProjectConfig(config, overrides = {}) {
-  const base = config.extends ? { ...presetDefaults[config.extends] } : { format: "terminal" };
+function resolveProjectConfig(config, overrides = {}, defaults = {}) {
+  const preset = config.extends ? presetDefaults[config.extends] : void 0;
   return {
-    ...base.preset ? { preset: base.preset } : {},
-    format: overrides.format ?? config.format ?? base.format
+    ...preset?.preset ? { preset: preset.preset } : {},
+    format: overrides.format ?? config.format ?? preset?.format ?? defaults.format ?? "terminal"
   };
 }
 async function readProjectConfig(root) {
@@ -2598,9 +2598,9 @@ async function loadProjectConfigIfPresent(root) {
   const raw = await readProjectConfig(root);
   return raw === void 0 ? void 0 : parseProjectConfig(raw, path);
 }
-async function resolveRuntimeConfig(root, overrides = {}) {
+async function resolveRuntimeConfig(root, overrides = {}, defaults = {}) {
   const config = await loadProjectConfigIfPresent(root) ?? { schemaVersion: 1 };
-  return resolveProjectConfig(config, overrides);
+  return resolveProjectConfig(config, overrides, defaults);
 }
 
 // packages/cli/dist/fixture-github.js
@@ -2776,7 +2776,11 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     }
   }
   if (command === "security") {
-    const format = securityFormatValue(args);
+    const explicitFormat = argValue(args, "--format");
+    const runtimeConfig = await resolveRuntimeConfig(root, explicitFormat ? { format: securityFormatValue(args) } : {}, { format: "terminal" });
+    if (runtimeConfig.format !== "terminal" && runtimeConfig.format !== "json")
+      throw new Error("security format must be terminal or json");
+    const format = runtimeConfig.format;
     const advisory = securityAdvisoryValue(args);
     const report = await runSecurity(root, advisory === "osv" ? { advisoryAdapter: new OsvAdvisoryAdapter() } : {});
     console.log(renderSecurity(report, format).trimEnd());
@@ -2798,7 +2802,10 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     return 0;
   }
   if (command === "review") {
-    const provider = providerFromArgs(args), format = reviewFormatValue(args), prValue = argValue(args, "--pr"), audit = new AuditLogger(resolve3(root, ".aunoforge", "audit.log"));
+    const explicitFormat = argValue(args, "--format");
+    const explicitReviewFormat = explicitFormat ? reviewFormatValue(args) : void 0;
+    const format = explicitReviewFormat === "sarif" ? "sarif" : (await resolveRuntimeConfig(root, explicitReviewFormat ? { format: explicitReviewFormat } : {}, { format: "terminal" })).format;
+    const provider = providerFromArgs(args), prValue = argValue(args, "--pr"), audit = new AuditLogger(resolve3(root, ".aunoforge", "audit.log"));
     const diffPath = argValue(args, "--diff");
     const suppliedDiff = diffPath ? await readFile9(resolve3(diffPath), "utf8") : void 0;
     const baselinePath = argValue(args, "--baseline");
@@ -2811,7 +2818,8 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     return 0;
   }
   if (command === "release") {
-    const format = releaseFormatValue(args);
+    const explicitFormat = argValue(args, "--format");
+    const format = (await resolveRuntimeConfig(root, explicitFormat ? { format: releaseFormatValue(args) } : {}, { format: "markdown" })).format;
     const from = argValue(args, "--from");
     const owner = argValue(args, "--owner"), repo = argValue(args, "--repo"), since = argValue(args, "--since");
     const github = owner && repo && since ? { reader: githubFromEnv(), owner, repo, since } : void 0;
