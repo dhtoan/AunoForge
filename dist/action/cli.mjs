@@ -1967,6 +1967,35 @@ function sectionFor(subject) {
 function isBreaking(subject) {
   return /^\w+(?:\([^)]*\))?!:/i.test(subject) || /BREAKING CHANGE:/i.test(subject);
 }
+function categoryForCommit(subject) {
+  if (isBreaking(subject))
+    return "Breaking";
+  if (/^feat(?:\([^)]*\))?:/i.test(subject))
+    return "Features";
+  if (/^fix(?:\([^)]*\))?:/i.test(subject))
+    return "Fixes";
+  if (/^security(?:\([^)]*\))?:/i.test(subject))
+    return "Security";
+  return "Maintenance";
+}
+function recommendedBump(categories) {
+  if (categories.Breaking.length)
+    return "major";
+  if (categories.Features.length)
+    return "minor";
+  if (categories.Fixes.length || categories.Security.length || categories.Maintenance.length)
+    return "patch";
+  return "none";
+}
+function emptyCategories() {
+  return {
+    Features: [],
+    Fixes: [],
+    Security: [],
+    Breaking: [],
+    Maintenance: []
+  };
+}
 function renderSection(name, lines) {
   if (!lines.length)
     return "";
@@ -1983,6 +2012,7 @@ async function generateReleaseNotes(options) {
     ["Improved", []],
     ["Changed", []]
   ]);
+  const categories = emptyCategories();
   const breakingChanges = [];
   const contributors = /* @__PURE__ */ new Set();
   for (const commit of commits) {
@@ -1990,6 +2020,14 @@ async function generateReleaseNotes(options) {
     sections.get(sectionFor(commit.subject)).push(text);
     if (isBreaking(commit.subject))
       breakingChanges.push(text);
+    const category = categoryForCommit(commit.subject);
+    categories[category].push({
+      category,
+      title: text,
+      source: "commit",
+      commit: commit.hash,
+      evidence: `commit:${commit.hash}`
+    });
   }
   const pullRequestLines = [];
   if (options.github) {
@@ -2020,12 +2058,18 @@ async function generateReleaseNotes(options) {
   if (contributors.size) {
     parts.push("", "### Contributors", ...[...contributors].sort().map((name) => `- @${name}`));
   }
+  const dataset = {
+    categories,
+    recommendedBump: recommendedBump(categories),
+    contributors: [...contributors].sort()
+  };
   return {
     markdown: `${parts.join("\n").trimEnd()}
 `,
     commitCount: commits.length,
     breakingChanges,
-    contributors: [...contributors].sort()
+    contributors: dataset.contributors,
+    dataset
   };
 }
 
