@@ -15,10 +15,11 @@ import { review, renderReview } from "./review.js";
 import { generateReleaseNotes, renderRelease, type ReleaseFormat } from "./release.js";
 import { listRecipes, resolveRecipePath, testRecipePath, validateRecipePath } from "./recipe-commands.js";
 import { runSecurity, renderSecurity } from "./security.js";
+import { loadProjectConfig, resolveRuntimeConfig } from "./config.js";
 import { AuditLogger } from "@aunoforge/core";
 import { loadIssueFixtureReader } from "./fixture-github.js";
 
-export const commands=["init","doctor","triage","reproduce","review","release","security","recipes","recipe"] as const;
+export const commands=["init","doctor","config","triage","reproduce","review","release","security","recipes","recipe"] as const;
 function argValue(args:string[],name:string):string|undefined{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;}
 function formatValue(args:string[]):"terminal"|"markdown"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json")throw new Error("--format must be terminal, markdown, or json");return value;}
 function reviewFormatValue(args:string[]):"terminal"|"markdown"|"json"|"sarif"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json"&&value!=="sarif")throw new Error("--format must be terminal, markdown, json, or sarif");return value;}
@@ -47,6 +48,21 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     console.log(result.skippedExisting?`Config already exists: ${result.path}`:dryRun?result.preview:`Created ${result.path}`);return 0;
   }
   if(command==="doctor"){console.log(JSON.stringify(await runDoctor(root),null,2));return 0;}
+  if(command==="config"){
+    if(args[0]!=="validate"){
+      console.log(JSON.stringify({valid:false,errors:["config requires: validate"]},null,2));
+      return 1;
+    }
+    try{
+      const config=await loadProjectConfig(root);
+      console.log(JSON.stringify({valid:true,config},null,2));
+      return 0;
+    }catch(error){
+      const message=error instanceof Error?error.message:String(error);
+      console.log(JSON.stringify({valid:false,errors:[message]},null,2));
+      return 1;
+    }
+  }
   if(command==="security"){
     const format=securityFormatValue(args);
     const advisory=securityAdvisoryValue(args);
@@ -56,7 +72,9 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
   }
   if(command==="triage"||command==="reproduce"){
     const issueNumber=Number(args.find(x=>/^\d+$/.test(x))); if(!Number.isInteger(issueNumber)||issueNumber<1)throw new Error(`${command} requires an issue number`);
-    const owner=required(args,"--owner"), repo=required(args,"--repo"), provider=providerFromArgs(args), format=formatValue(args);
+    const explicitFormat=argValue(args,"--format");
+    const runtimeConfig=await resolveRuntimeConfig(root,explicitFormat?{format:formatValue(args)}:{});
+    const owner=required(args,"--owner"), repo=required(args,"--repo"), provider=providerFromArgs(args), format=runtimeConfig.format;
     const fixture=argValue(args,"--fixture");
     const reader=fixture?await loadIssueFixtureReader(resolve(fixture)):githubFromEnv();
     if(command==="triage")console.log(renderTriage(await triageIssue({reader,provider,owner,repo,issueNumber}),format).trimEnd());

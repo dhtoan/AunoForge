@@ -2,7 +2,7 @@
 
 // packages/cli/dist/app.js
 import { resolve as resolve3 } from "node:path";
-import { readFile as readFile8 } from "node:fs/promises";
+import { readFile as readFile9 } from "node:fs/promises";
 
 // packages/core/dist/contracts.js
 var severities = ["critical", "high", "medium", "low", "info"];
@@ -1545,15 +1545,41 @@ function renderReport(report, format, incremental) {
 }
 
 // packages/cli/dist/init.js
-import { access as access2, mkdir as mkdir2, writeFile } from "node:fs/promises";
-import { join as join2 } from "node:path";
-
-// packages/cli/dist/project.js
-import { access, readdir, readFile as readFile2 } from "node:fs/promises";
+import { access, mkdir as mkdir2, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 async function exists(path) {
   try {
     await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function initializeAunoForge(root, options = {}) {
+  const path = join(root, ".aunoforge", "config.json");
+  if (await exists(path))
+    return { created: false, skippedExisting: true, path, preview: "" };
+  const config = { schemaVersion: 1, extends: "recommended" };
+  const preview = JSON.stringify(config, null, 2) + "\n";
+  if (options.dryRun)
+    return { created: false, skippedExisting: false, path, preview };
+  if (!isApprovalToken(options.approvalToken))
+    throw new Error("init write requires explicit human approval");
+  await mkdir2(join(root, ".aunoforge"), { recursive: true });
+  await writeFile(path, preview, { encoding: "utf8", flag: "wx" });
+  return { created: true, skippedExisting: false, path, preview };
+}
+
+// packages/cli/dist/doctor.js
+import { access as access3, readFile as readFile3, readdir as readdir2 } from "node:fs/promises";
+import { join as join3 } from "node:path";
+
+// packages/cli/dist/project.js
+import { access as access2, readdir, readFile as readFile2 } from "node:fs/promises";
+import { join as join2 } from "node:path";
+async function exists2(path) {
+  try {
+    await access2(path);
     return true;
   } catch {
     return false;
@@ -1567,13 +1593,13 @@ async function json(path) {
   }
 }
 async function detectProject(root) {
-  const packageJson = await json(join(root, "package.json"));
-  if (await exists(join(root, "pnpm-workspace.yaml")) || await exists(join(root, "lerna.json")) || Array.isArray(packageJson?.workspaces))
+  const packageJson = await json(join2(root, "package.json"));
+  if (await exists2(join2(root, "pnpm-workspace.yaml")) || await exists2(join2(root, "lerna.json")) || Array.isArray(packageJson?.workspaces))
     return { type: "monorepo", frameworks: [] };
   const files = await readdir(root).catch(() => []);
   const phpFiles = files.filter((x) => x.endsWith(".php"));
   for (const file of phpFiles) {
-    const source = await readFile2(join(root, file), "utf8").catch(() => "");
+    const source = await readFile2(join2(root, file), "utf8").catch(() => "");
     if (/Plugin Name\s*:/i.test(source)) {
       const frameworks = ["WordPress"];
       if (/WooCommerce|WC_/i.test(source))
@@ -1583,41 +1609,14 @@ async function detectProject(root) {
   }
   if (packageJson)
     return { type: "node", frameworks: [] };
-  if (await exists(join(root, "pyproject.toml")) || await exists(join(root, "requirements.txt")) || await exists(join(root, "setup.py")))
+  if (await exists2(join2(root, "pyproject.toml")) || await exists2(join2(root, "requirements.txt")) || await exists2(join2(root, "setup.py")))
     return { type: "python", frameworks: [] };
-  if (await exists(join(root, "composer.json")))
+  if (await exists2(join2(root, "composer.json")))
     return { type: "php-composer", frameworks: [] };
   return { type: "generic", frameworks: [] };
 }
 
-// packages/cli/dist/init.js
-async function exists2(path) {
-  try {
-    await access2(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-async function initializeAunoForge(root, options = {}) {
-  const path = join2(root, ".aunoforge", "config.yml");
-  if (await exists2(path))
-    return { created: false, skippedExisting: true, path, preview: "" };
-  const project = await detectProject(root);
-  const config = { project: { type: project.type, frameworks: project.frameworks }, provider: { default: "mock" }, security: { mode: "safe", allowWrite: false, allowMerge: false, allowPublish: false } };
-  const preview = JSON.stringify(config, null, 2) + "\n";
-  if (options.dryRun)
-    return { created: false, skippedExisting: false, path, preview };
-  if (!isApprovalToken(options.approvalToken))
-    throw new Error("init write requires explicit human approval");
-  await mkdir2(join2(root, ".aunoforge"), { recursive: true });
-  await writeFile(path, preview, { encoding: "utf8", flag: "wx" });
-  return { created: true, skippedExisting: false, path, preview };
-}
-
 // packages/cli/dist/doctor.js
-import { access as access3, readFile as readFile3, readdir as readdir2 } from "node:fs/promises";
-import { join as join3 } from "node:path";
 async function exists3(path) {
   try {
     await access3(path);
@@ -2498,8 +2497,114 @@ ${source.path} [${source.status}]`);
   return lines.join("\n");
 }
 
-// packages/cli/dist/fixture-github.js
+// packages/cli/dist/config.js
 import { readFile as readFile7 } from "node:fs/promises";
+import { join as join7 } from "node:path";
+var builtinPresetIds = [
+  "recommended",
+  "minimal",
+  "strict",
+  "security",
+  "node",
+  "python",
+  "wordpress"
+];
+var allowedKeys = /* @__PURE__ */ new Set(["schemaVersion", "extends", "format"]);
+var builtinPresetSet = new Set(builtinPresetIds);
+var presetDefaults = {
+  recommended: { preset: "recommended", format: "terminal" },
+  minimal: { preset: "minimal", format: "terminal" },
+  strict: { preset: "strict", format: "terminal" },
+  security: { preset: "security", format: "json" },
+  node: { preset: "node", format: "terminal" },
+  python: { preset: "python", format: "terminal" },
+  wordpress: { preset: "wordpress", format: "terminal" }
+};
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function securitySensitiveError(key) {
+  if (/allow[-_]?write|allowWrite/i.test(key)) {
+    return new Error(`${key} cannot be set in project configuration; write permission requires an explicit runtime flag`);
+  }
+  if (/token|api[-_]?key|apiKey|credential|secret/i.test(key)) {
+    return new Error(`${key} cannot be set in project configuration; credentials must be supplied at runtime`);
+  }
+  return void 0;
+}
+function validateProjectConfig(value) {
+  if (!isRecord(value))
+    throw new Error("Configuration must be a JSON object");
+  for (const key of Object.keys(value)) {
+    const sensitive = securitySensitiveError(key);
+    if (sensitive)
+      throw sensitive;
+    if (!allowedKeys.has(key))
+      throw new Error(`Unknown configuration key: ${key}`);
+  }
+  if (value.schemaVersion === void 0)
+    throw new Error("schemaVersion is required");
+  if (value.schemaVersion !== 1)
+    throw new Error("schemaVersion must be 1");
+  if (value.extends !== void 0 && (typeof value.extends !== "string" || !builtinPresetSet.has(value.extends))) {
+    throw new Error("extends must be a built-in preset");
+  }
+  if (value.format !== void 0 && value.format !== "terminal" && value.format !== "markdown" && value.format !== "json") {
+    throw new Error("format must be terminal, markdown, or json");
+  }
+  const config = { schemaVersion: 1 };
+  if (value.extends !== void 0)
+    config.extends = value.extends;
+  if (value.format !== void 0)
+    config.format = value.format;
+  return config;
+}
+function resolveProjectConfig(config, overrides = {}) {
+  const base = config.extends ? { ...presetDefaults[config.extends] } : { format: "terminal" };
+  return {
+    ...base.preset ? { preset: base.preset } : {},
+    format: overrides.format ?? config.format ?? base.format
+  };
+}
+async function readProjectConfig(root) {
+  const path = join7(root, ".aunoforge", "config.json");
+  try {
+    return await readFile7(path, "utf8");
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT")
+      return void 0;
+    throw error;
+  }
+}
+function parseProjectConfig(raw, path) {
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Configuration file is not valid JSON: ${path}`);
+  }
+  return validateProjectConfig(parsed);
+}
+async function loadProjectConfig(root) {
+  const path = join7(root, ".aunoforge", "config.json");
+  const raw = await readProjectConfig(root);
+  if (raw === void 0)
+    throw new Error(`Configuration file not found: ${path}`);
+  return parseProjectConfig(raw, path);
+}
+async function loadProjectConfigIfPresent(root) {
+  const path = join7(root, ".aunoforge", "config.json");
+  const raw = await readProjectConfig(root);
+  return raw === void 0 ? void 0 : parseProjectConfig(raw, path);
+}
+async function resolveRuntimeConfig(root, overrides = {}) {
+  const config = await loadProjectConfigIfPresent(root) ?? { schemaVersion: 1 };
+  return resolveProjectConfig(config, overrides);
+}
+
+// packages/cli/dist/fixture-github.js
+import { readFile as readFile8 } from "node:fs/promises";
 function string(value, label) {
   if (typeof value !== "string")
     throw new Error(`${label} must be a string`);
@@ -2560,7 +2665,7 @@ var IssueFixtureReader = class {
   }
 };
 async function loadIssueFixtureReader(path) {
-  const raw = JSON.parse(await readFile7(path, "utf8"));
+  const raw = JSON.parse(await readFile8(path, "utf8"));
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw new Error("Issue fixture must be an object");
   const record3 = raw;
@@ -2568,7 +2673,7 @@ async function loadIssueFixtureReader(path) {
 }
 
 // packages/cli/dist/app.js
-var commands = ["init", "doctor", "triage", "reproduce", "review", "release", "security", "recipes", "recipe"];
+var commands = ["init", "doctor", "config", "triage", "reproduce", "review", "release", "security", "recipes", "recipe"];
 function argValue(args, name) {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : void 0;
@@ -2655,6 +2760,21 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     console.log(JSON.stringify(await runDoctor(root), null, 2));
     return 0;
   }
+  if (command === "config") {
+    if (args[0] !== "validate") {
+      console.log(JSON.stringify({ valid: false, errors: ["config requires: validate"] }, null, 2));
+      return 1;
+    }
+    try {
+      const config = await loadProjectConfig(root);
+      console.log(JSON.stringify({ valid: true, config }, null, 2));
+      return 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(JSON.stringify({ valid: false, errors: [message] }, null, 2));
+      return 1;
+    }
+  }
   if (command === "security") {
     const format = securityFormatValue(args);
     const advisory = securityAdvisoryValue(args);
@@ -2666,7 +2786,9 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     const issueNumber = Number(args.find((x) => /^\d+$/.test(x)));
     if (!Number.isInteger(issueNumber) || issueNumber < 1)
       throw new Error(`${command} requires an issue number`);
-    const owner = required(args, "--owner"), repo = required(args, "--repo"), provider = providerFromArgs(args), format = formatValue(args);
+    const explicitFormat = argValue(args, "--format");
+    const runtimeConfig = await resolveRuntimeConfig(root, explicitFormat ? { format: formatValue(args) } : {});
+    const owner = required(args, "--owner"), repo = required(args, "--repo"), provider = providerFromArgs(args), format = runtimeConfig.format;
     const fixture = argValue(args, "--fixture");
     const reader = fixture ? await loadIssueFixtureReader(resolve3(fixture)) : githubFromEnv();
     if (command === "triage")
@@ -2678,9 +2800,9 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
   if (command === "review") {
     const provider = providerFromArgs(args), format = reviewFormatValue(args), prValue = argValue(args, "--pr"), audit = new AuditLogger(resolve3(root, ".aunoforge", "audit.log"));
     const diffPath = argValue(args, "--diff");
-    const suppliedDiff = diffPath ? await readFile8(resolve3(diffPath), "utf8") : void 0;
+    const suppliedDiff = diffPath ? await readFile9(resolve3(diffPath), "utf8") : void 0;
     const baselinePath = argValue(args, "--baseline");
-    const baseline = baselinePath ? validateBaselineReport(JSON.parse(await readFile8(resolve3(baselinePath), "utf8"))) : void 0;
+    const baseline = baselinePath ? validateBaselineReport(JSON.parse(await readFile9(resolve3(baselinePath), "utf8"))) : void 0;
     if (prValue && suppliedDiff !== void 0)
       throw new Error("--pr and --diff cannot be used together");
     const report = prValue ? await review({ root, provider, github: { reader: githubFromEnv(), owner: required(args, "--owner"), repo: required(args, "--repo"), prNumber: Number(prValue) }, runTests: args.includes("--run-tests"), audit }) : await review({ root, provider, base: argValue(args, "--base"), ...suppliedDiff !== void 0 ? { diff: suppliedDiff } : {}, runTests: args.includes("--run-tests"), audit });

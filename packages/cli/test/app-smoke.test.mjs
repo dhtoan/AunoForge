@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve, join } from 'node:path';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { runCli } from '../dist/app.js';
@@ -14,6 +14,7 @@ async function capture(argv){
 
 function git(root,...args){return execFileSync('git',['-C',root,...args],{encoding:'utf8'}).trim();}
 async function releaseRepo(){const root=await mkdtemp(join(tmpdir(),'aunoforge-cli-release-'));git(root,'init');git(root,'config','user.email','t@example.com');git(root,'config','user.name','T');await writeFile(join(root,'x'),'0');git(root,'add','.');git(root,'commit','-m','chore: initial');git(root,'tag','v0.1.0');await writeFile(join(root,'x'),'1');git(root,'add','.');git(root,'commit','-m','feat: deterministic release json');return root;}
+async function configRepo(config){const root=await mkdtemp(join(tmpdir(),'aunoforge-cli-config-'));await mkdir(join(root,'.aunoforge'),{recursive:true});await writeFile(join(root,'.aunoforge','config.json'),JSON.stringify(config,null,2));return root;}
 
 test('triage and reproduce can use a local issue fixture with mock provider', async()=>{
   const fixture=resolve('test/fixtures/github-issue.json');
@@ -22,6 +23,8 @@ test('triage and reproduce can use a local issue fixture with mock provider', as
   const reproduce=await capture(['reproduce','1','--owner','fixture','--repo','fixture','--fixture',fixture,'--provider','mock','--format','json']);
   assert.equal(reproduce.code,0); assert.ok(JSON.parse(reproduce.output).steps.length>0);
 });
+
+test('project config supplies a read-only format default while an explicit CLI format wins',async()=>{const root=await configRepo({schemaVersion:1,format:'json'});const fixture=resolve('test/fixtures/github-issue.json');const configured=await capture(['triage','1','--root',root,'--owner','fixture','--repo','fixture','--fixture',fixture,'--provider','mock']);assert.equal(configured.code,0);assert.equal(JSON.parse(configured.output).severity,'info');const explicit=await capture(['triage','1','--root',root,'--owner','fixture','--repo','fixture','--fixture',fixture,'--provider','mock','--format','markdown']);assert.equal(explicit.code,0);assert.match(explicit.output,/^#/);});
 
 test('review command accepts a diff fixture and emits deterministic JSON finding', async()=>{
   const root=await mkdtemp(join(tmpdir(),'aunoforge-cli-diff-'));
@@ -44,3 +47,7 @@ test('review command emits SARIF 2.1.0 from the same deterministic report', asyn
 test('release --format json --dry-run emits deterministic dataset and performs zero repository writes', async()=>{const root=await releaseRepo();const beforeHead=git(root,'rev-parse','HEAD');const beforeStatus=git(root,'status','--porcelain');const beforeTags=git(root,'tag','--list');const result=await capture(['release','--root',root,'--from','v0.1.0','--format','json','--dry-run']);assert.equal(result.code,0);const report=JSON.parse(result.output);assert.equal(report.recommendedBump,'minor');assert.deepEqual(report.categories.Features.map(change=>change.title),['deterministic release json']);assert.equal('published' in report,false);assert.equal(git(root,'rev-parse','HEAD'),beforeHead);assert.equal(git(root,'status','--porcelain'),beforeStatus);assert.equal(git(root,'tag','--list'),beforeTags);});
 
 test('release rejects unsupported formats clearly', async()=>{const root=await releaseRepo();await assert.rejects(()=>capture(['release','--root',root,'--from','v0.1.0','--format','sarif']),/--format must be terminal, markdown, or json/);});
+
+test('config validate reports a valid versioned project config',async()=>{const root=await configRepo({schemaVersion:1,extends:'wordpress',format:'json'});const result=await capture(['config','validate','--root',root]);assert.equal(result.code,0);const report=JSON.parse(result.output);assert.equal(report.valid,true);assert.equal(report.config.schemaVersion,1);assert.equal(report.config.extends,'wordpress');});
+
+test('config validate reports schema and forbidden setting errors without throwing',async()=>{const root=await configRepo({schemaVersion:2,'allow-write':true});const result=await capture(['config','validate','--root',root]);assert.equal(result.code,1);const report=JSON.parse(result.output);assert.equal(report.valid,false);assert.equal(report.errors.some(message=>/allow-write|schemaVersion/.test(message)),true);});
