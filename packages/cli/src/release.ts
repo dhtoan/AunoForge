@@ -28,6 +28,7 @@ export type GenerateReleaseNotesOptions = {
 
 export type ReleaseCategory = "Features" | "Fixes" | "Security" | "Breaking" | "Maintenance";
 export type RecommendedBump = "major" | "minor" | "patch" | "none";
+export type ReleaseFormat = "terminal" | "markdown" | "json";
 export type ReleaseChange = {
   category: ReleaseCategory;
   title: string;
@@ -54,6 +55,8 @@ export type ReleaseNotesResult = {
 type Commit = { hash: string; subject: string; author: string; date: string };
 type SectionName = "Added" | "Fixed" | "Security" | "Improved" | "Changed";
 type PullRequestClassification = { category: ReleaseCategory; evidence: string };
+
+const releaseCategories: ReleaseCategory[] = ["Breaking", "Features", "Fixes", "Security", "Maintenance"];
 
 function parseLog(raw: string): Commit[] {
   return raw.split("\n").filter(Boolean).map((line) => {
@@ -131,6 +134,28 @@ function emptyCategories(): Record<ReleaseCategory, ReleaseChange[]> {
 function renderSection(name: string, lines: string[]): string {
   if (!lines.length) return "";
   return `### ${name}\n${lines.map((line) => `- ${line}`).join("\n")}\n`;
+}
+
+export function renderRelease(result: ReleaseNotesResult, format: ReleaseFormat): string {
+  if (format === "markdown") return result.markdown;
+  if (format === "json") return `${JSON.stringify(result.dataset, null, 2)}\n`;
+
+  const lines = [
+    "AunoForge release",
+    `Recommended bump: ${result.dataset.recommendedBump}`,
+    `Commits: ${result.commitCount}`
+  ];
+  for (const category of releaseCategories) {
+    const changes = result.dataset.categories[category];
+    if (!changes.length) continue;
+    lines.push("", `${category}:`);
+    for (const change of changes) {
+      const source = change.pullRequest ? `PR #${change.pullRequest}` : change.commit ? `commit ${change.commit.slice(0, 8)}` : change.source;
+      lines.push(`- ${change.title} (${source}; ${change.evidence})`);
+    }
+  }
+  if (result.dataset.contributors.length) lines.push("", `Contributors: ${result.dataset.contributors.map((name) => `@${name}`).join(", ")}`);
+  return `${lines.join("\n")}\n`;
 }
 
 export async function generateReleaseNotes(options: GenerateReleaseNotesOptions): Promise<ReleaseNotesResult> {
