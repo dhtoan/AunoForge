@@ -1,0 +1,43 @@
+{
+  "results": [
+    {
+      "vulns": [
+        {
+          "id": "OSV-ALPHA-2",
+          "database_specific": { "severity": "MODERATE" },
+          "affected": [
+            {
+              "ranges": [
+                {
+                  "type": "SEMVER",
+                  "events": [
+                    { "introduced": "0" },
+                    { "fixed": "1.3.0" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GHSA-ALPHA-1",
+          "database_specific": { "severity": "HIGH" },
+          "affected": [
+            {
+              "ranges": [
+                {
+                  "type": "SEMVER",
+                  "events": [
+                    { "introduced": "0" },
+                    { "fixed": "1.2.4" }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {}
+  ]
+}
