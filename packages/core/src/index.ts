@@ -7,3 +7,4 @@ export * from "./paths.js";
 export * from "./audit.js";
 export * from "./evidence.js";
 export * from "./normalize.js";
+export * from "./security-inventory.js";
