@@ -792,6 +792,7 @@ var baselineInput = process.env.INPUT_BASELINE || "";
 var comment = (process.env.INPUT_COMMENT || "false").toLowerCase() === "true";
 var allowWrite = (process.env.INPUT_ALLOW_WRITE || "false").toLowerCase() === "true";
 var githubApiBase = (process.env.GITHUB_API_URL || "https://api.github.com").replace(/\/$/, "");
+var reviewCommentMarker = "<!-- aunoforge:review-comment -->";
 if (!["review", "security"].includes(command)) throw new Error(`Unsupported AunoForge Action command: ${command}`);
 if (command === "review") {
   if (comment && !allowWrite) throw new Error("comment=true requires allow-write=true and pull-requests: write permission.");
@@ -845,6 +846,29 @@ async function fetchPullRequestDiff() {
   });
   if (!response.ok) throw new Error(`GitHub diff API returned ${response.status}`);
   return response.text();
+}
+async function upsertReviewComment(body) {
+  const listUrl = `${githubApiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${prNumber}/comments?per_page=100`;
+  const listResponse = await fetch(listUrl, {
+    method: "GET",
+    headers: githubHeaders("application/vnd.github+json")
+  });
+  if (!listResponse.ok) throw new Error(`GitHub comment list API returned ${listResponse.status}`);
+  const comments = await listResponse.json();
+  if (!Array.isArray(comments)) throw new Error("GitHub comment list API returned an invalid response");
+  const ownedComment = comments.find((entry) => Number.isInteger(Number(entry?.id)) && typeof entry?.body === "string" && entry.body.includes(reviewCommentMarker));
+  const markedBody = `${reviewCommentMarker}
+${body}`;
+  const target = ownedComment ? `${githubApiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/comments/${Number(ownedComment.id)}` : `${githubApiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${prNumber}/comments`;
+  const response = await fetch(target, {
+    method: ownedComment ? "PATCH" : "POST",
+    headers: {
+      ...githubHeaders("application/vnd.github+json"),
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ body: markedBody })
+  });
+  if (!response.ok) throw new Error(`GitHub comment ${ownedComment ? "update" : "create"} API returned ${response.status}`);
 }
 if (command === "security") {
   const args = [cliPath, "security", "--root", workspace, "--format", format];
@@ -914,14 +938,6 @@ if (command === "security") {
     const body = format === "markdown" ? report : `\`\`\`${format}
 ${report}
 \`\`\``;
-    const response = await fetch(`${githubApiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${prNumber}/comments`, {
-      method: "POST",
-      headers: {
-        ...githubHeaders("application/vnd.github+json"),
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ body })
-    });
-    if (!response.ok) throw new Error(`GitHub comment API returned ${response.status}`);
+    await upsertReviewComment(body);
   }
 }
