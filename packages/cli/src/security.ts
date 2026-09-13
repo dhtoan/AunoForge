@@ -7,6 +7,9 @@ import {
   type PackageJsonInventoryItem,
   type PackageLockInventoryItem,
   type PnpmLockInventoryItem,
+  type SecurityAdvisoryAdapter,
+  type SecurityAdvisoryPackage,
+  type SecurityAdvisoryResult,
 } from "@aunoforge/core";
 
 type InventoryItem = PackageJsonInventoryItem | PackageLockInventoryItem | PnpmLockInventoryItem;
@@ -28,8 +31,13 @@ export interface SecurityUnsupportedSource {
 
 export interface SecurityReport {
   schemaVersion: "1";
-  mode: "offline";
+  mode: "offline" | "advisory";
   sources: Array<SecuritySupportedSource | SecurityUnsupportedSource>;
+  advisories?: SecurityAdvisoryResult[];
+}
+
+export interface RunSecurityOptions {
+  advisoryAdapter?: SecurityAdvisoryAdapter;
 }
 
 const supportedFiles = new Map<string, SourceFormat>([
@@ -83,7 +91,27 @@ function parseSource(format: SourceFormat, source: string, sourcePath: string): 
   return parsePnpmLockInventory(source, sourcePath);
 }
 
-export async function runSecurity(root: string): Promise<SecurityReport> {
+function advisoryPackages(sources: SecurityReport["sources"]): SecurityAdvisoryPackage[] {
+  const packages = new Map<string, SecurityAdvisoryPackage>();
+  for (const source of sources) {
+    if (source.status !== "supported") continue;
+    for (const item of source.inventory) {
+      if (!("resolvedVersion" in item)) continue;
+      const candidate: SecurityAdvisoryPackage = {
+        ecosystem: item.ecosystem,
+        name: item.name,
+        version: item.resolvedVersion,
+      };
+      const key = `${candidate.ecosystem}\u0000${candidate.name}\u0000${candidate.version}`;
+      if (!packages.has(key)) packages.set(key, candidate);
+    }
+  }
+  return [...packages.values()].sort((a, b) =>
+    a.ecosystem.localeCompare(b.ecosystem) || a.name.localeCompare(b.name) || a.version.localeCompare(b.version),
+  );
+}
+
+export async function runSecurity(root: string, options: RunSecurityOptions = {}): Promise<SecurityReport> {
   const files = await discoverSupportedFiles(root);
   const sources: SecurityReport["sources"] = [];
 
@@ -106,13 +134,15 @@ export async function runSecurity(root: string): Promise<SecurityReport> {
     }
   }
 
-  return { schemaVersion: "1", mode: "offline", sources };
+  if (!options.advisoryAdapter) return { schemaVersion: "1", mode: "offline", sources };
+  const advisories = await options.advisoryAdapter.lookup(advisoryPackages(sources));
+  return { schemaVersion: "1", mode: "advisory", sources, advisories };
 }
 
 export function renderSecurity(report: SecurityReport, format: "terminal" | "json"): string {
   if (format === "json") return JSON.stringify(report, null, 2);
 
-  const lines = ["AunoForge security (offline)"];
+  const lines = [`AunoForge security (${report.mode})`];
   if (report.sources.length === 0) lines.push("No supported dependency evidence found.");
 
   for (const source of report.sources) {
@@ -125,6 +155,21 @@ export function renderSecurity(report: SecurityReport, format: "terminal" | "jso
       const version = "resolvedVersion" in item ? item.resolvedVersion : item.declaredVersion;
       const scope = item.scope ? ` ${item.scope}` : "";
       lines.push(`  ${item.name} ${version} ${item.relationship}${scope}`);
+    }
+  }
+
+  if (report.advisories) {
+    lines.push("\nAdvisories");
+    for (const result of report.advisories) {
+      if (result.advisories.length === 0) {
+        lines.push(`  ${result.package.name} ${result.package.version}: none`);
+        continue;
+      }
+      for (const advisory of result.advisories) {
+        const severity = advisory.severity ? ` ${advisory.severity}` : "";
+        const fixed = advisory.fixedVersions.length ? ` fixed ${advisory.fixedVersions.join(",")}` : "";
+        lines.push(`  ${result.package.name} ${result.package.version}: ${advisory.id}${severity}${fixed}`);
+      }
     }
   }
 

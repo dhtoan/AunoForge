@@ -117,3 +117,81 @@ test('security command renders a concise terminal inventory by default', async (
   assert.match(result.output, /direct/);
   assert.match(result.output, /development/);
 });
+
+test('security command enriches only resolved lockfile versions when OSV is explicitly enabled', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aunoforge-security-osv-'));
+  await writeFile(join(root, 'package.json'), JSON.stringify({
+    dependencies: { manifestOnly: '^9.0.0' },
+  }));
+  await writeFile(join(root, 'package-lock.json'), JSON.stringify({
+    lockfileVersion: 3,
+    packages: {
+      '': { dependencies: { zeta: '^2.0.0', alpha: '^1.0.0' } },
+      'node_modules/zeta': { version: '2.0.0' },
+      'node_modules/alpha': { version: '1.2.3' },
+    },
+  }));
+
+  const requests = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url: String(url), body: JSON.parse(options.body) });
+    return new Response(JSON.stringify({
+      results: [
+        {
+          vulns: [
+            {
+              id: 'GHSA-ALPHA-1',
+              database_specific: { severity: 'HIGH' },
+              affected: [{ ranges: [{ events: [{ introduced: '0' }, { fixed: '1.2.4' }] }] }],
+            },
+          ],
+        },
+        {},
+      ],
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+
+  try {
+    const result = await capture(['security', '--root', root, '--format', 'json', '--advisory', 'osv']);
+    assert.equal(result.code, 0);
+    assert.deepEqual(requests, [
+      {
+        url: 'https://api.osv.dev/v1/querybatch',
+        body: {
+          queries: [
+            { package: { ecosystem: 'npm', name: 'alpha' }, version: '1.2.3' },
+            { package: { ecosystem: 'npm', name: 'zeta' }, version: '2.0.0' },
+          ],
+        },
+      },
+    ]);
+
+    const report = JSON.parse(result.output);
+    assert.equal(report.mode, 'advisory');
+    assert.deepEqual(report.advisories, [
+      {
+        package: { ecosystem: 'npm', name: 'alpha', version: '1.2.3' },
+        advisories: [
+          {
+            id: 'GHSA-ALPHA-1',
+            severity: 'high',
+            fixedVersions: ['1.2.4'],
+            provenance: 'osv',
+            confidence: 1,
+          },
+        ],
+      },
+      {
+        package: { ecosystem: 'npm', name: 'zeta', version: '2.0.0' },
+        advisories: [],
+      },
+    ]);
+    assert.equal(
+      report.sources.find((source) => source.path === 'package.json')?.inventory[0]?.declaredVersion,
+      '^9.0.0',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
