@@ -6,13 +6,15 @@ on:
       - tmp/security-cli-runtime
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -20,8 +22,16 @@ jobs:
       - run: corepack prepare pnpm@10.15.1 --activate
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:action
-      - uses: actions/upload-artifact@v4
-        with:
-          name: security-cli-runtime
-          path: dist/action/cli.mjs
-          if-no-files-found: error
+      - name: Save generated CLI runtime
+        run: cp dist/action/cli.mjs "$RUNNER_TEMP/cli.mjs"
+      - name: Commit generated CLI runtime to feature branch
+        run: |
+          git fetch origin feat/v0.2-security-cli
+          git checkout -B feat/v0.2-security-cli origin/feat/v0.2-security-cli
+          cp "$RUNNER_TEMP/cli.mjs" dist/action/cli.mjs
+          git diff --exit-code -- dist/action/cli.mjs && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/action/cli.mjs
+          git commit -m "build: refresh packaged CLI runtime"
+          git push origin HEAD:feat/v0.2-security-cli
