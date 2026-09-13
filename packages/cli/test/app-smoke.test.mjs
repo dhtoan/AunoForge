@@ -24,6 +24,8 @@ test('triage and reproduce can use a local issue fixture with mock provider', as
   assert.equal(reproduce.code,0); assert.ok(JSON.parse(reproduce.output).steps.length>0);
 });
 
+test('project config supplies a read-only format default while an explicit CLI format wins',async()=>{const root=await configRepo({schemaVersion:1,format:'json'});const fixture=resolve('test/fixtures/github-issue.json');const configured=await capture(['triage','1','--root',root,'--owner','fixture','--repo','fixture','--fixture',fixture,'--provider','mock']);assert.equal(configured.code,0);assert.equal(JSON.parse(configured.output).severity,'info');const explicit=await capture(['triage','1','--root',root,'--owner','fixture','--repo','fixture','--fixture',fixture,'--provider','mock','--format','markdown']);assert.equal(explicit.code,0);assert.match(explicit.output,/^#/);});
+
 test('review command accepts a diff fixture and emits deterministic JSON finding', async()=>{
   const root=await mkdtemp(join(tmpdir(),'aunoforge-cli-diff-'));
   const result=await capture(['review','--root',root,'--diff',resolve('test/fixtures/sample.diff'),'--provider','mock','--format','json']);
