@@ -1545,15 +1545,41 @@ function renderReport(report, format, incremental) {
 }
 
 // packages/cli/dist/init.js
-import { access as access2, mkdir as mkdir2, writeFile } from "node:fs/promises";
-import { join as join2 } from "node:path";
-
-// packages/cli/dist/project.js
-import { access, readdir, readFile as readFile2 } from "node:fs/promises";
+import { access, mkdir as mkdir2, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 async function exists(path) {
   try {
     await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function initializeAunoForge(root, options = {}) {
+  const path = join(root, ".aunoforge", "config.json");
+  if (await exists(path))
+    return { created: false, skippedExisting: true, path, preview: "" };
+  const config = { schemaVersion: 1, extends: "recommended" };
+  const preview = JSON.stringify(config, null, 2) + "\n";
+  if (options.dryRun)
+    return { created: false, skippedExisting: false, path, preview };
+  if (!isApprovalToken(options.approvalToken))
+    throw new Error("init write requires explicit human approval");
+  await mkdir2(join(root, ".aunoforge"), { recursive: true });
+  await writeFile(path, preview, { encoding: "utf8", flag: "wx" });
+  return { created: true, skippedExisting: false, path, preview };
+}
+
+// packages/cli/dist/doctor.js
+import { access as access3, readFile as readFile3, readdir as readdir2 } from "node:fs/promises";
+import { join as join3 } from "node:path";
+
+// packages/cli/dist/project.js
+import { access as access2, readdir, readFile as readFile2 } from "node:fs/promises";
+import { join as join2 } from "node:path";
+async function exists2(path) {
+  try {
+    await access2(path);
     return true;
   } catch {
     return false;
@@ -1567,13 +1593,13 @@ async function json(path) {
   }
 }
 async function detectProject(root) {
-  const packageJson = await json(join(root, "package.json"));
-  if (await exists(join(root, "pnpm-workspace.yaml")) || await exists(join(root, "lerna.json")) || Array.isArray(packageJson?.workspaces))
+  const packageJson = await json(join2(root, "package.json"));
+  if (await exists2(join2(root, "pnpm-workspace.yaml")) || await exists2(join2(root, "lerna.json")) || Array.isArray(packageJson?.workspaces))
     return { type: "monorepo", frameworks: [] };
   const files = await readdir(root).catch(() => []);
   const phpFiles = files.filter((x) => x.endsWith(".php"));
   for (const file of phpFiles) {
-    const source = await readFile2(join(root, file), "utf8").catch(() => "");
+    const source = await readFile2(join2(root, file), "utf8").catch(() => "");
     if (/Plugin Name\s*:/i.test(source)) {
       const frameworks = ["WordPress"];
       if (/WooCommerce|WC_/i.test(source))
@@ -1583,41 +1609,14 @@ async function detectProject(root) {
   }
   if (packageJson)
     return { type: "node", frameworks: [] };
-  if (await exists(join(root, "pyproject.toml")) || await exists(join(root, "requirements.txt")) || await exists(join(root, "setup.py")))
+  if (await exists2(join2(root, "pyproject.toml")) || await exists2(join2(root, "requirements.txt")) || await exists2(join2(root, "setup.py")))
     return { type: "python", frameworks: [] };
-  if (await exists(join(root, "composer.json")))
+  if (await exists2(join2(root, "composer.json")))
     return { type: "php-composer", frameworks: [] };
   return { type: "generic", frameworks: [] };
 }
 
-// packages/cli/dist/init.js
-async function exists2(path) {
-  try {
-    await access2(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-async function initializeAunoForge(root, options = {}) {
-  const path = join2(root, ".aunoforge", "config.yml");
-  if (await exists2(path))
-    return { created: false, skippedExisting: true, path, preview: "" };
-  const project = await detectProject(root);
-  const config = { project: { type: project.type, frameworks: project.frameworks }, provider: { default: "mock" }, security: { mode: "safe", allowWrite: false, allowMerge: false, allowPublish: false } };
-  const preview = JSON.stringify(config, null, 2) + "\n";
-  if (options.dryRun)
-    return { created: false, skippedExisting: false, path, preview };
-  if (!isApprovalToken(options.approvalToken))
-    throw new Error("init write requires explicit human approval");
-  await mkdir2(join2(root, ".aunoforge"), { recursive: true });
-  await writeFile(path, preview, { encoding: "utf8", flag: "wx" });
-  return { created: true, skippedExisting: false, path, preview };
-}
-
 // packages/cli/dist/doctor.js
-import { access as access3, readFile as readFile3, readdir as readdir2 } from "node:fs/promises";
-import { join as join3 } from "node:path";
 async function exists3(path) {
   try {
     await access3(path);
@@ -2512,6 +2511,15 @@ var builtinPresetIds = [
 ];
 var allowedKeys = /* @__PURE__ */ new Set(["schemaVersion", "extends", "format"]);
 var builtinPresetSet = new Set(builtinPresetIds);
+var presetDefaults = {
+  recommended: { preset: "recommended", format: "terminal" },
+  minimal: { preset: "minimal", format: "terminal" },
+  strict: { preset: "strict", format: "terminal" },
+  security: { preset: "security", format: "json" },
+  node: { preset: "node", format: "terminal" },
+  python: { preset: "python", format: "terminal" },
+  wordpress: { preset: "wordpress", format: "terminal" }
+};
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -2551,17 +2559,25 @@ function validateProjectConfig(value) {
     config.format = value.format;
   return config;
 }
-async function loadProjectConfig(root) {
+function resolveProjectConfig(config, overrides = {}) {
+  const base = config.extends ? { ...presetDefaults[config.extends] } : { format: "terminal" };
+  return {
+    ...base.preset ? { preset: base.preset } : {},
+    format: overrides.format ?? config.format ?? base.format
+  };
+}
+async function readProjectConfig(root) {
   const path = join7(root, ".aunoforge", "config.json");
-  let raw;
   try {
-    raw = await readFile7(path, "utf8");
+    return await readFile7(path, "utf8");
   } catch (error) {
     const code = error.code;
     if (code === "ENOENT")
-      throw new Error(`Configuration file not found: ${path}`);
+      return void 0;
     throw error;
   }
+}
+function parseProjectConfig(raw, path) {
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -2569,6 +2585,22 @@ async function loadProjectConfig(root) {
     throw new Error(`Configuration file is not valid JSON: ${path}`);
   }
   return validateProjectConfig(parsed);
+}
+async function loadProjectConfig(root) {
+  const path = join7(root, ".aunoforge", "config.json");
+  const raw = await readProjectConfig(root);
+  if (raw === void 0)
+    throw new Error(`Configuration file not found: ${path}`);
+  return parseProjectConfig(raw, path);
+}
+async function loadProjectConfigIfPresent(root) {
+  const path = join7(root, ".aunoforge", "config.json");
+  const raw = await readProjectConfig(root);
+  return raw === void 0 ? void 0 : parseProjectConfig(raw, path);
+}
+async function resolveRuntimeConfig(root, overrides = {}) {
+  const config = await loadProjectConfigIfPresent(root) ?? { schemaVersion: 1 };
+  return resolveProjectConfig(config, overrides);
 }
 
 // packages/cli/dist/fixture-github.js
@@ -2754,7 +2786,9 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     const issueNumber = Number(args.find((x) => /^\d+$/.test(x)));
     if (!Number.isInteger(issueNumber) || issueNumber < 1)
       throw new Error(`${command} requires an issue number`);
-    const owner = required(args, "--owner"), repo = required(args, "--repo"), provider = providerFromArgs(args), format = formatValue(args);
+    const explicitFormat = argValue(args, "--format");
+    const runtimeConfig = await resolveRuntimeConfig(root, explicitFormat ? { format: formatValue(args) } : {});
+    const owner = required(args, "--owner"), repo = required(args, "--repo"), provider = providerFromArgs(args), format = runtimeConfig.format;
     const fixture = argValue(args, "--fixture");
     const reader = fixture ? await loadIssueFixtureReader(resolve3(fixture)) : githubFromEnv();
     if (command === "triage")
