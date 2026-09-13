@@ -64,7 +64,10 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     }
   }
   if(command==="security"){
-    const format=securityFormatValue(args);
+    const explicitFormat=argValue(args,"--format");
+    const runtimeConfig=await resolveRuntimeConfig(root,explicitFormat?{format:securityFormatValue(args)}:{},{format:"terminal"});
+    if(runtimeConfig.format!=="terminal"&&runtimeConfig.format!=="json")throw new Error("security format must be terminal or json");
+    const format=runtimeConfig.format;
     const advisory=securityAdvisoryValue(args);
     const report=await runSecurity(root,advisory==="osv"?{advisoryAdapter:new OsvAdvisoryAdapter()}:{});
     console.log(renderSecurity(report,format).trimEnd());
@@ -82,7 +85,12 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     return 0;
   }
   if(command==="review"){
-    const provider=providerFromArgs(args), format=reviewFormatValue(args), prValue=argValue(args,"--pr"), audit=new AuditLogger(resolve(root,".aunoforge","audit.log"));
+    const explicitFormat=argValue(args,"--format");
+    const explicitReviewFormat=explicitFormat?reviewFormatValue(args):undefined;
+    const format=explicitReviewFormat==="sarif"
+      ? "sarif"
+      : (await resolveRuntimeConfig(root,explicitReviewFormat?{format:explicitReviewFormat}:{},{format:"terminal"})).format;
+    const provider=providerFromArgs(args), prValue=argValue(args,"--pr"), audit=new AuditLogger(resolve(root,".aunoforge","audit.log"));
     const diffPath=argValue(args,"--diff");
     const suppliedDiff=diffPath?await readFile(resolve(diffPath),"utf8"):undefined;
     const baselinePath=argValue(args,"--baseline");
@@ -95,7 +103,8 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     console.log((incremental?renderReport(report,format,incremental):renderReview(report,format)).trimEnd());return 0;
   }
   if(command==="release"){
-    const format=releaseFormatValue(args);
+    const explicitFormat=argValue(args,"--format");
+    const format=(await resolveRuntimeConfig(root,explicitFormat?{format:releaseFormatValue(args)}:{},{format:"markdown"})).format;
     const from=argValue(args,"--from");
     const owner=argValue(args,"--owner"), repo=argValue(args,"--repo"), since=argValue(args,"--since");
     const github=owner&&repo&&since?{reader:githubFromEnv(),owner,repo,since}:undefined;
