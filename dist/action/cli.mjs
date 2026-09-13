@@ -2,7 +2,7 @@
 
 // packages/cli/dist/app.js
 import { resolve as resolve3 } from "node:path";
-import { readFile as readFile8 } from "node:fs/promises";
+import { readFile as readFile9 } from "node:fs/promises";
 
 // packages/core/dist/contracts.js
 var severities = ["critical", "high", "medium", "low", "info"];
@@ -2498,8 +2498,81 @@ ${source.path} [${source.status}]`);
   return lines.join("\n");
 }
 
-// packages/cli/dist/fixture-github.js
+// packages/cli/dist/config.js
 import { readFile as readFile7 } from "node:fs/promises";
+import { join as join7 } from "node:path";
+var builtinPresetIds = [
+  "recommended",
+  "minimal",
+  "strict",
+  "security",
+  "node",
+  "python",
+  "wordpress"
+];
+var allowedKeys = /* @__PURE__ */ new Set(["schemaVersion", "extends", "format"]);
+var builtinPresetSet = new Set(builtinPresetIds);
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function securitySensitiveError(key) {
+  if (/allow[-_]?write|allowWrite/i.test(key)) {
+    return new Error(`${key} cannot be set in project configuration; write permission requires an explicit runtime flag`);
+  }
+  if (/token|api[-_]?key|apiKey|credential|secret/i.test(key)) {
+    return new Error(`${key} cannot be set in project configuration; credentials must be supplied at runtime`);
+  }
+  return void 0;
+}
+function validateProjectConfig(value) {
+  if (!isRecord(value))
+    throw new Error("Configuration must be a JSON object");
+  for (const key of Object.keys(value)) {
+    const sensitive = securitySensitiveError(key);
+    if (sensitive)
+      throw sensitive;
+    if (!allowedKeys.has(key))
+      throw new Error(`Unknown configuration key: ${key}`);
+  }
+  if (value.schemaVersion === void 0)
+    throw new Error("schemaVersion is required");
+  if (value.schemaVersion !== 1)
+    throw new Error("schemaVersion must be 1");
+  if (value.extends !== void 0 && (typeof value.extends !== "string" || !builtinPresetSet.has(value.extends))) {
+    throw new Error("extends must be a built-in preset");
+  }
+  if (value.format !== void 0 && value.format !== "terminal" && value.format !== "markdown" && value.format !== "json") {
+    throw new Error("format must be terminal, markdown, or json");
+  }
+  const config = { schemaVersion: 1 };
+  if (value.extends !== void 0)
+    config.extends = value.extends;
+  if (value.format !== void 0)
+    config.format = value.format;
+  return config;
+}
+async function loadProjectConfig(root) {
+  const path = join7(root, ".aunoforge", "config.json");
+  let raw;
+  try {
+    raw = await readFile7(path, "utf8");
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT")
+      throw new Error(`Configuration file not found: ${path}`);
+    throw error;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Configuration file is not valid JSON: ${path}`);
+  }
+  return validateProjectConfig(parsed);
+}
+
+// packages/cli/dist/fixture-github.js
+import { readFile as readFile8 } from "node:fs/promises";
 function string(value, label) {
   if (typeof value !== "string")
     throw new Error(`${label} must be a string`);
@@ -2560,7 +2633,7 @@ var IssueFixtureReader = class {
   }
 };
 async function loadIssueFixtureReader(path) {
-  const raw = JSON.parse(await readFile7(path, "utf8"));
+  const raw = JSON.parse(await readFile8(path, "utf8"));
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw new Error("Issue fixture must be an object");
   const record3 = raw;
@@ -2568,7 +2641,7 @@ async function loadIssueFixtureReader(path) {
 }
 
 // packages/cli/dist/app.js
-var commands = ["init", "doctor", "triage", "reproduce", "review", "release", "security", "recipes", "recipe"];
+var commands = ["init", "doctor", "config", "triage", "reproduce", "review", "release", "security", "recipes", "recipe"];
 function argValue(args, name) {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : void 0;
@@ -2655,6 +2728,21 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     console.log(JSON.stringify(await runDoctor(root), null, 2));
     return 0;
   }
+  if (command === "config") {
+    if (args[0] !== "validate") {
+      console.log(JSON.stringify({ valid: false, errors: ["config requires: validate"] }, null, 2));
+      return 1;
+    }
+    try {
+      const config = await loadProjectConfig(root);
+      console.log(JSON.stringify({ valid: true, config }, null, 2));
+      return 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(JSON.stringify({ valid: false, errors: [message] }, null, 2));
+      return 1;
+    }
+  }
   if (command === "security") {
     const format = securityFormatValue(args);
     const advisory = securityAdvisoryValue(args);
@@ -2678,9 +2766,9 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
   if (command === "review") {
     const provider = providerFromArgs(args), format = reviewFormatValue(args), prValue = argValue(args, "--pr"), audit = new AuditLogger(resolve3(root, ".aunoforge", "audit.log"));
     const diffPath = argValue(args, "--diff");
-    const suppliedDiff = diffPath ? await readFile8(resolve3(diffPath), "utf8") : void 0;
+    const suppliedDiff = diffPath ? await readFile9(resolve3(diffPath), "utf8") : void 0;
     const baselinePath = argValue(args, "--baseline");
-    const baseline = baselinePath ? validateBaselineReport(JSON.parse(await readFile8(resolve3(baselinePath), "utf8"))) : void 0;
+    const baseline = baselinePath ? validateBaselineReport(JSON.parse(await readFile9(resolve3(baselinePath), "utf8"))) : void 0;
     if (prValue && suppliedDiff !== void 0)
       throw new Error("--pr and --diff cannot be used together");
     const report = prValue ? await review({ root, provider, github: { reader: githubFromEnv(), owner: required(args, "--owner"), repo: required(args, "--repo"), prNumber: Number(prValue) }, runTests: args.includes("--run-tests"), audit }) : await review({ root, provider, base: argValue(args, "--base"), ...suppliedDiff !== void 0 ? { diff: suppliedDiff } : {}, runTests: args.includes("--run-tests"), audit });
