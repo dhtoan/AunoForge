@@ -25,7 +25,6 @@ const args = process.argv.slice(2);
 const stableTag = requireSemverTag(value(args, '--stable-tag'), '--stable-tag');
 const nextTag = requireSemverTag(value(args, '--next-tag'), '--next-tag');
 const root = process.cwd();
-const nextVersion = nextTag.slice(1);
 
 const action = await requireFile(resolve(root, 'action.yml'));
 requireMatch(action, /runs:\s*\n\s+using:\s+node24\b/, 'action.yml must use the packaged Node 24 runtime');
@@ -46,7 +45,7 @@ for (const [name, source] of [['README.md', readme], ['docs/examples/aunoforge-r
   if (!source.includes(`dhtoan/AunoForge@${stableTag}`)) throw new Error(`${name} must reference the stable Action tag ${stableTag}`);
 }
 
-const notes = await requireFile(resolve(root, `docs/releases/${nextVersion}.md`));
+const notes = await requireFile(resolve(root, `docs/releases/${nextTag}.md`));
 if (!notes.includes(`# AunoForge ${nextTag}`)) throw new Error(`Release notes must identify ${nextTag}`);
 if (/\b(?:TBD|TODO|placeholder)\b/i.test(notes)) throw new Error('Release notes must not contain placeholder markers');
 requireMatch(notes, /Node 24/i, 'Release notes must mention the packaged Node 24 Action runtime');
