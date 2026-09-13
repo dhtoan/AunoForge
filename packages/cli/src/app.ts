@@ -15,7 +15,7 @@ import { review, renderReview } from "./review.js";
 import { generateReleaseNotes, renderRelease, type ReleaseFormat } from "./release.js";
 import { listRecipes, resolveRecipePath, testRecipePath, validateRecipePath } from "./recipe-commands.js";
 import { runSecurity, renderSecurity } from "./security.js";
-import { loadProjectConfig } from "./config.js";
+import { loadProjectConfig, resolveRuntimeConfig } from "./config.js";
 import { AuditLogger } from "@aunoforge/core";
 import { loadIssueFixtureReader } from "./fixture-github.js";
 
@@ -72,7 +72,9 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
   }
   if(command==="triage"||command==="reproduce"){
     const issueNumber=Number(args.find(x=>/^\d+$/.test(x))); if(!Number.isInteger(issueNumber)||issueNumber<1)throw new Error(`${command} requires an issue number`);
-    const owner=required(args,"--owner"), repo=required(args,"--repo"), provider=providerFromArgs(args), format=formatValue(args);
+    const explicitFormat=argValue(args,"--format");
+    const runtimeConfig=await resolveRuntimeConfig(root,explicitFormat?{format:formatValue(args)}:{});
+    const owner=required(args,"--owner"), repo=required(args,"--repo"), provider=providerFromArgs(args), format=runtimeConfig.format;
     const fixture=argValue(args,"--fixture");
     const reader=fixture?await loadIssueFixtureReader(resolve(fixture)):githubFromEnv();
     if(command==="triage")console.log(renderTriage(await triageIssue({reader,provider,owner,repo,issueNumber}),format).trimEnd());
