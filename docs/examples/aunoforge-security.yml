@@ -13,7 +13,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dhtoan/AunoForge@main
         id: aunoforge-security
@@ -22,7 +22,7 @@ jobs:
           format: json
 
       - name: Upload AunoForge security inventory (optional)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aunoforge-security-inventory
           path: ${{ steps.aunoforge-security.outputs.report-path }}
