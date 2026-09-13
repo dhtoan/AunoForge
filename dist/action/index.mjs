@@ -179,14 +179,14 @@ function canonicalize(findings) {
   }
   return result;
 }
-function isIncrementalReviewReport(baseline2) {
-  return "kind" in baseline2 && baseline2.kind === "incremental-review";
+function isIncrementalReviewReport(baseline) {
+  return "kind" in baseline && baseline.kind === "incremental-review";
 }
-function baselineCurrent(baseline2) {
-  return isIncrementalReviewReport(baseline2) ? baseline2.current : baseline2;
+function baselineCurrent(baseline) {
+  return isIncrementalReviewReport(baseline) ? baseline.current : baseline;
 }
-function previousResolvedFingerprints(baseline2) {
-  return isIncrementalReviewReport(baseline2) ? new Set(baseline2.resolvedFingerprints) : /* @__PURE__ */ new Set();
+function previousResolvedFingerprints(baseline) {
+  return isIncrementalReviewReport(baseline) ? new Set(baseline.resolvedFingerprints) : /* @__PURE__ */ new Set();
 }
 function findingLine(finding) {
   return finding.location?.startLine ?? Number.MAX_SAFE_INTEGER;
@@ -197,10 +197,10 @@ function compareCurrent(a, b) {
 function compareResolved(a, b) {
   return normalizeFindingPath(a.finding.location?.file).localeCompare(normalizeFindingPath(b.finding.location?.file)) || findingLine(a.finding) - findingLine(b.finding) || a.fingerprint.localeCompare(b.fingerprint);
 }
-function compareReviewReports(baseline2, current) {
-  const baselineFindings = canonicalize(baselineCurrent(baseline2).findings);
+function compareReviewReports(baseline, current) {
+  const baselineFindings = canonicalize(baselineCurrent(baseline).findings);
   const currentFindings = canonicalize(current.findings);
-  const priorResolved = previousResolvedFingerprints(baseline2);
+  const priorResolved = previousResolvedFingerprints(baseline);
   const findings = [];
   for (const [fingerprint, finding] of currentFindings) {
     const previous = baselineFindings.get(fingerprint);
@@ -382,18 +382,18 @@ function validateBaselineReport(input) {
 }
 
 // packages/reporters/dist/markdown.js
-function renderMarkdown(report2) {
+function renderMarkdown(report) {
   const lines = [
     `# AunoForge Review`,
     "",
-    `Recommendation: **${report2.recommendation}**`,
+    `Recommendation: **${report.recommendation}**`,
     "",
-    `Critical: ${report2.summary.critical} \xB7 High: ${report2.summary.high} \xB7 Medium: ${report2.summary.medium} \xB7 Low: ${report2.summary.low} \xB7 Info: ${report2.summary.info}`,
+    `Critical: ${report.summary.critical} \xB7 High: ${report.summary.high} \xB7 Medium: ${report.summary.medium} \xB7 Low: ${report.summary.low} \xB7 Info: ${report.summary.info}`,
     ""
   ];
-  if (report2.findings.length === 0)
+  if (report.findings.length === 0)
     lines.push("No findings.", "");
-  for (const finding of report2.findings) {
+  for (const finding of report.findings) {
     lines.push(`## ${finding.severity.toUpperCase()} \xB7 ${finding.title}`);
     lines.push(`Category: ${finding.category}`);
     lines.push(`Source: ${finding.source}`);
@@ -413,18 +413,18 @@ function renderMarkdown(report2) {
 }
 
 // packages/reporters/dist/json.js
-function renderJson(report2) {
-  return JSON.stringify(validateReviewReport(report2), null, 2) + "\n";
+function renderJson(report) {
+  return JSON.stringify(validateReviewReport(report), null, 2) + "\n";
 }
 
 // packages/reporters/dist/terminal.js
-function renderTerminal(report2) {
-  const lines = [`AunoForge Review \u2014 ${report2.recommendation}`];
-  for (const finding of report2.findings) {
+function renderTerminal(report) {
+  const lines = [`AunoForge Review \u2014 ${report.recommendation}`];
+  for (const finding of report.findings) {
     const location = finding.location ? ` (${finding.location.file}${finding.location.startLine ? `:${finding.location.startLine}` : ""})` : "";
     lines.push(`${finding.severity.toUpperCase()} ${finding.title}${location}`);
   }
-  if (report2.findings.length === 0)
+  if (report.findings.length === 0)
     lines.push("No findings.");
   return lines.join("\n") + "\n";
 }
@@ -453,8 +453,8 @@ function stableFile(file) {
 function compareResults(a, b) {
   return severityRank2[b.severity] - severityRank2[a.severity] || stableFile(a.location.file).localeCompare(stableFile(b.location.file)) || a.location.startLine - b.location.startLine || a.category.localeCompare(b.category) || a.id.localeCompare(b.id);
 }
-function renderSarif(report2, incremental2) {
-  const eligible = report2.findings.filter(verifiedLocation).sort(compareResults);
+function renderSarif(report, incremental) {
+  const eligible = report.findings.filter(verifiedLocation).sort(compareResults);
   const categories = [...new Set(eligible.map((finding) => finding.category))].sort();
   const rules = categories.map((category) => {
     const finding = eligible.find((candidate) => candidate.category === category);
@@ -464,8 +464,8 @@ function renderSarif(report2, incremental2) {
       shortDescription: { text: finding.title }
     };
   });
-  const comparisonByFindingId = new Map(incremental2?.findings.map((item) => [item.finding.id, item]) ?? []);
-  const comparisonByFingerprint = new Map(incremental2?.findings.map((item) => [item.fingerprint, item]) ?? []);
+  const comparisonByFindingId = new Map(incremental?.findings.map((item) => [item.finding.id, item]) ?? []);
+  const comparisonByFingerprint = new Map(incremental?.findings.map((item) => [item.fingerprint, item]) ?? []);
   const results = eligible.map((finding) => {
     const firstEvidence = finding.evidence[0];
     const message = firstEvidence ? `${finding.title} \u2014 ${firstEvidence}` : `${finding.title} \u2014 ${finding.explanation}`;
@@ -474,8 +474,8 @@ function renderSarif(report2, incremental2) {
     };
     if (finding.location.endLine !== void 0)
       region.endLine = finding.location.endLine;
-    const computedFingerprint = incremental2 ? fingerprintFinding(finding) : void 0;
-    const compared = incremental2 ? comparisonByFindingId.get(finding.id) ?? (computedFingerprint ? comparisonByFingerprint.get(computedFingerprint) : void 0) : void 0;
+    const computedFingerprint = incremental ? fingerprintFinding(finding) : void 0;
+    const compared = incremental ? comparisonByFindingId.get(finding.id) ?? (computedFingerprint ? comparisonByFingerprint.get(computedFingerprint) : void 0) : void 0;
     const incrementalProperties = compared ? { aunoforgeFingerprint: compared.fingerprint, aunoforgeState: compared.state } : {};
     return {
       ruleId: finding.category,
@@ -500,8 +500,8 @@ function renderSarif(report2, incremental2) {
     tool: { driver: { name: "AunoForge", rules } },
     results
   };
-  if (incremental2)
-    run.properties = { aunoforgeIncremental: incremental2.summary };
+  if (incremental)
+    run.properties = { aunoforgeIncremental: incremental.summary };
   return `${JSON.stringify({
     $schema: "https://json.schemastore.org/sarif-2.1.0.json",
     version: "2.1.0",
@@ -572,11 +572,11 @@ function firstChangedLine(finding, scope) {
   const end = Math.max(start, finding.location.endLine ?? start);
   return [...lines].filter((line) => line >= start && line <= end).sort((a, b) => a - b)[0];
 }
-function selectGitHubAnnotations(report2, diff, options = {}) {
+function selectGitHubAnnotations(report, diff, options = {}) {
   const minimumSeverity = options.minimumSeverity ?? "medium";
   const limit = Math.max(0, options.limit ?? 25);
   const scope = parseChangedLineScope(diff);
-  const eligible = report2.findings.flatMap((finding) => {
+  const eligible = report.findings.flatMap((finding) => {
     if (!isVerifiedLocation(finding))
       return [];
     if (severityRank3[finding.severity] < severityRank3[minimumSeverity])
@@ -618,21 +618,21 @@ function regressionSuffix(item) {
   }
   return " \xB7 returned after resolution";
 }
-function renderIncrementalJson(report2) {
-  return `${JSON.stringify(report2, null, 2)}
+function renderIncrementalJson(report) {
+  return `${JSON.stringify(report, null, 2)}
 `;
 }
-function renderIncrementalMarkdown(report2) {
+function renderIncrementalMarkdown(report) {
   const lines = [
     "# AunoForge Incremental Review",
     "",
-    `Recommendation: **${report2.current.recommendation}**`,
+    `Recommendation: **${report.current.recommendation}**`,
     "",
-    `Regressed: ${report2.summary.regressed} \xB7 New: ${report2.summary.new} \xB7 Persistent: ${report2.summary.persistent} \xB7 Resolved: ${report2.summary.resolved}`,
+    `Regressed: ${report.summary.regressed} \xB7 New: ${report.summary.new} \xB7 Persistent: ${report.summary.persistent} \xB7 Resolved: ${report.summary.resolved}`,
     ""
   ];
   for (const state of ["regressed", "new", "persistent"]) {
-    const items = report2.findings.filter((item) => item.state === state);
+    const items = report.findings.filter((item) => item.state === state);
     if (items.length === 0)
       continue;
     lines.push(`## ${state.toUpperCase()} (${items.length})`, "");
@@ -647,11 +647,11 @@ function renderIncrementalMarkdown(report2) {
       lines.push("");
     }
   }
-  lines.push(`## RESOLVED (${report2.summary.resolved})`, "");
-  if (report2.resolved.length === 0) {
+  lines.push(`## RESOLVED (${report.summary.resolved})`, "");
+  if (report.resolved.length === 0) {
     lines.push("No resolved findings.", "");
   } else {
-    for (const item of report2.resolved) {
+    for (const item of report.resolved) {
       const location = item.finding.location;
       const where = location ? `${location.file}:${location.startLine}` : "repository";
       lines.push(`- ${item.finding.title} \xB7 ${where} \xB7 ${item.fingerprint}`);
@@ -661,20 +661,20 @@ function renderIncrementalMarkdown(report2) {
   return `${lines.join("\n").trimEnd()}
 `;
 }
-function renderIncrementalTerminal(report2) {
+function renderIncrementalTerminal(report) {
   const lines = [
     "AunoForge Incremental Review",
-    `Recommendation: ${report2.current.recommendation}`,
-    `Regressed: ${report2.summary.regressed} \xB7 New: ${report2.summary.new} \xB7 Persistent: ${report2.summary.persistent} \xB7 Resolved: ${report2.summary.resolved}`
+    `Recommendation: ${report.current.recommendation}`,
+    `Regressed: ${report.summary.regressed} \xB7 New: ${report.summary.new} \xB7 Persistent: ${report.summary.persistent} \xB7 Resolved: ${report.summary.resolved}`
   ];
   for (const state of ["regressed", "new", "persistent"]) {
-    for (const item of report2.findings.filter((candidate) => candidate.state === state)) {
+    for (const item of report.findings.filter((candidate) => candidate.state === state)) {
       lines.push(`[${state.toUpperCase()}][${item.finding.severity.toUpperCase()}] ${item.finding.title} \u2014 ${locationText(item)}${regressionSuffix(item)}`);
     }
   }
-  if (report2.resolved.length > 0) {
-    lines.push(`Resolved: ${report2.resolved.length}`);
-    for (const item of report2.resolved)
+  if (report.resolved.length > 0) {
+    lines.push(`Resolved: ${report.resolved.length}`);
+    for (const item of report.resolved)
       lines.push(`[RESOLVED] ${item.finding.title} \u2014 ${item.fingerprint}`);
   } else {
     lines.push("Resolved: 0");
@@ -684,23 +684,23 @@ function renderIncrementalTerminal(report2) {
 }
 
 // packages/reporters/dist/reporter.js
-function renderReport(report2, format2, incremental2) {
-  if (!incremental2) {
+function renderReport(report, format2, incremental) {
+  if (!incremental) {
     if (format2 === "json")
-      return renderJson(report2);
+      return renderJson(report);
     if (format2 === "markdown")
-      return renderMarkdown(report2);
+      return renderMarkdown(report);
     if (format2 === "sarif")
-      return renderSarif(report2);
-    return renderTerminal(report2);
+      return renderSarif(report);
+    return renderTerminal(report);
   }
   if (format2 === "json")
-    return renderIncrementalJson(incremental2);
+    return renderIncrementalJson(incremental);
   if (format2 === "markdown")
-    return renderIncrementalMarkdown(incremental2);
+    return renderIncrementalMarkdown(incremental);
   if (format2 === "sarif")
-    return renderSarif(report2, incremental2);
-  return renderIncrementalTerminal(incremental2);
+    return renderSarif(report, incremental);
+  return renderIncrementalTerminal(incremental);
 }
 
 // scripts/action-annotations.mjs
@@ -728,30 +728,30 @@ function emitGitHubAnnotations(annotations, write = (chunk) => process.stdout.wr
 
 // scripts/action-summary.mjs
 import { basename } from "node:path";
-function getFindingVerificationCounts(report2) {
+function getFindingVerificationCounts(report) {
   let verified = 0;
   let unverified = 0;
-  for (const finding of report2.findings) {
+  for (const finding of report.findings) {
     if (finding.source === "deterministic" || finding.location?.verified === true) verified += 1;
     else unverified += 1;
   }
   return { verified, unverified };
 }
 function renderActionStepSummary({
-  report: report2,
+  report,
   provider: provider2,
   format: format2,
-  reportPath: reportPath2,
+  reportPath,
   commentEnabled,
   allowWrite: allowWrite2,
   incrementalSummary,
-  annotationSummary: annotationSummary2 = { eligible: 0, emitted: 0, overflow: 0 }
+  annotationSummary = { eligible: 0, emitted: 0, overflow: 0 }
 }) {
-  const { verified, unverified } = getFindingVerificationCounts(report2);
+  const { verified, unverified } = getFindingVerificationCounts(report);
   const mode = commentEnabled && allowWrite2 ? "PR comment write enabled" : "read-only";
-  const severity = report2.summary;
+  const severity = report.summary;
   const rows = [
-    `| Recommendation | \`${report2.recommendation}\` |`
+    `| Recommendation | \`${report.recommendation}\` |`
   ];
   if (incrementalSummary) {
     rows.push(`| Incremental | New ${incrementalSummary.new} \xB7 Regressed ${incrementalSummary.regressed} \xB7 Persistent ${incrementalSummary.persistent} \xB7 Resolved ${incrementalSummary.resolved} |`);
@@ -762,8 +762,8 @@ function renderActionStepSummary({
     `| Mode | \`${mode}\` |`,
     `| Findings | ${verified} verified \xB7 ${unverified} unverified |`,
     `| Severity | Critical ${severity.critical} \xB7 High ${severity.high} \xB7 Medium ${severity.medium} \xB7 Low ${severity.low} \xB7 Info ${severity.info} |`,
-    `| Annotations | ${annotationSummary2.emitted} emitted \xB7 ${annotationSummary2.overflow} overflow |`,
-    `| Report | \`${basename(reportPath2)}\` |`
+    `| Annotations | ${annotationSummary.emitted} emitted \xB7 ${annotationSummary.overflow} overflow |`,
+    `| Report | \`${basename(reportPath)}\` |`
   );
   return [
     "## AunoForge Review",
@@ -787,30 +787,23 @@ var command = process.env.INPUT_COMMAND || "review";
 var provider = process.env.INPUT_PROVIDER || "mock";
 var model = process.env.INPUT_MODEL || "";
 var format = process.env.INPUT_FORMAT || "markdown";
+var advisory = process.env.INPUT_ADVISORY || "";
 var baselineInput = process.env.INPUT_BASELINE || "";
 var comment = (process.env.INPUT_COMMENT || "false").toLowerCase() === "true";
 var allowWrite = (process.env.INPUT_ALLOW_WRITE || "false").toLowerCase() === "true";
 var githubApiBase = (process.env.GITHUB_API_URL || "https://api.github.com").replace(/\/$/, "");
-if (command !== "review") throw new Error("AunoForge Action supports command=review only.");
-if (comment && !allowWrite) throw new Error("comment=true requires allow-write=true and pull-requests: write permission.");
-if (!["mock", "codex", "claude"].includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
-if (!["terminal", "markdown", "json", "sarif"].includes(format)) throw new Error(`Unsupported format: ${format}`);
-var args = [cliPath, "review", "--root", workspace, "--provider", provider, "--format", "json"];
-if (model) args.push("--model", model);
-var eventPath = process.env.GITHUB_EVENT_PATH;
-var event = {};
-if (eventPath) {
-  try {
-    event = JSON.parse(await readFile(eventPath, "utf8"));
-  } catch {
-    event = {};
-  }
+if (!["review", "security"].includes(command)) throw new Error(`Unsupported AunoForge Action command: ${command}`);
+if (command === "review") {
+  if (comment && !allowWrite) throw new Error("comment=true requires allow-write=true and pull-requests: write permission.");
+  if (!["mock", "codex", "claude"].includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
+  if (!["terminal", "markdown", "json", "sarif"].includes(format)) throw new Error(`Unsupported format: ${format}`);
+  if (advisory) throw new Error("advisory is supported only with command=security.");
+} else {
+  if (!["terminal", "json"].includes(format)) throw new Error("command=security supports format=terminal or format=json.");
+  if (advisory && advisory !== "osv") throw new Error("command=security advisory must be empty or osv.");
+  if (baselineInput) throw new Error("baseline is supported only with command=review.");
+  if (comment || allowWrite) throw new Error("command=security is read-only and does not support comment or allow-write.");
 }
-var repository = process.env.GITHUB_REPOSITORY || "";
-var [owner, repo] = repository.split("/");
-var prNumber = Number(event?.pull_request?.number);
-var hasPullRequestContext = Number.isInteger(prNumber) && prNumber > 0 && Boolean(owner) && Boolean(repo);
-if (hasPullRequestContext) args.push("--pr", String(prNumber), "--owner", owner, "--repo", repo);
 function runNode(argv) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, argv, { cwd: workspace, env: process.env, stdio: ["ignore", "pipe", "inherit"] });
@@ -831,6 +824,19 @@ function githubHeaders(accept) {
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }
+var eventPath = process.env.GITHUB_EVENT_PATH;
+var event = {};
+if (eventPath) {
+  try {
+    event = JSON.parse(await readFile(eventPath, "utf8"));
+  } catch {
+    event = {};
+  }
+}
+var repository = process.env.GITHUB_REPOSITORY || "";
+var [owner, repo] = repository.split("/");
+var prNumber = Number(event?.pull_request?.number);
+var hasPullRequestContext = Number.isInteger(prNumber) && prNumber > 0 && Boolean(owner) && Boolean(repo);
 async function fetchPullRequestDiff() {
   if (!hasPullRequestContext) return void 0;
   const response = await fetch(`${githubApiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${prNumber}`, {
@@ -840,67 +846,82 @@ async function fetchPullRequestDiff() {
   if (!response.ok) throw new Error(`GitHub diff API returned ${response.status}`);
   return response.text();
 }
-var rawReport = await runNode(args);
-var structuredReport = validateReviewReport(JSON.parse(rawReport));
-var baseline = baselineInput ? validateBaselineReport(JSON.parse(await readFile(resolve(workspace, baselineInput), "utf8"))) : void 0;
-var incremental = baseline ? compareReviewReports(baseline, structuredReport) : void 0;
-var report = renderReport(structuredReport, format, incremental);
-process.stdout.write(report);
-var extension = format === "json" ? "json" : format === "markdown" ? "md" : format === "sarif" ? "sarif" : "txt";
-var reportPath = join(workspace, `aunoforge-review.${extension}`);
-await writeFile(reportPath, report, "utf8");
-if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `report-path=${reportPath}
+if (command === "security") {
+  const args = [cliPath, "security", "--root", workspace, "--format", format];
+  if (advisory) args.push("--advisory", advisory);
+  const report = await runNode(args);
+  process.stdout.write(report);
+  const extension = format === "json" ? "json" : "txt";
+  const reportPath = join(workspace, `aunoforge-security.${extension}`);
+  await writeFile(reportPath, report, "utf8");
+  if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `report-path=${reportPath}
 `, "utf8");
-var annotationSummary = { eligible: 0, emitted: 0, overflow: 0 };
-if (hasPullRequestContext) {
-  try {
-    const diff = await fetchPullRequestDiff();
-    if (diff !== void 0) {
-      const annotationReport = incremental ? {
-        ...structuredReport,
-        findings: incremental.findings.filter((item) => item.state === "new" || item.state === "regressed").map((item) => item.finding)
-      } : structuredReport;
-      const selection = selectGitHubAnnotations(annotationReport, diff);
-      emitGitHubAnnotations(selection.annotations);
-      annotationSummary = {
-        eligible: selection.eligible,
-        emitted: selection.annotations.length,
-        overflow: selection.overflow
-      };
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`AunoForge annotations skipped: ${message}
+} else {
+  const args = [cliPath, "review", "--root", workspace, "--provider", provider, "--format", "json"];
+  if (model) args.push("--model", model);
+  if (hasPullRequestContext) args.push("--pr", String(prNumber), "--owner", owner, "--repo", repo);
+  const rawReport = await runNode(args);
+  const structuredReport = validateReviewReport(JSON.parse(rawReport));
+  const baseline = baselineInput ? validateBaselineReport(JSON.parse(await readFile(resolve(workspace, baselineInput), "utf8"))) : void 0;
+  const incremental = baseline ? compareReviewReports(baseline, structuredReport) : void 0;
+  const report = renderReport(structuredReport, format, incremental);
+  process.stdout.write(report);
+  const extension = format === "json" ? "json" : format === "markdown" ? "md" : format === "sarif" ? "sarif" : "txt";
+  const reportPath = join(workspace, `aunoforge-review.${extension}`);
+  await writeFile(reportPath, report, "utf8");
+  if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `report-path=${reportPath}
+`, "utf8");
+  let annotationSummary = { eligible: 0, emitted: 0, overflow: 0 };
+  if (hasPullRequestContext) {
+    try {
+      const diff = await fetchPullRequestDiff();
+      if (diff !== void 0) {
+        const annotationReport = incremental ? {
+          ...structuredReport,
+          findings: incremental.findings.filter((item) => item.state === "new" || item.state === "regressed").map((item) => item.finding)
+        } : structuredReport;
+        const selection = selectGitHubAnnotations(annotationReport, diff);
+        emitGitHubAnnotations(selection.annotations);
+        annotationSummary = {
+          eligible: selection.eligible,
+          emitted: selection.annotations.length,
+          overflow: selection.overflow
+        };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`AunoForge annotations skipped: ${message}
 `);
+    }
   }
-}
-if (process.env.GITHUB_STEP_SUMMARY) {
-  const stepSummary = renderActionStepSummary({
-    report: structuredReport,
-    provider,
-    format,
-    reportPath,
-    commentEnabled: comment,
-    allowWrite,
-    incrementalSummary: incremental?.summary,
-    annotationSummary
-  });
-  await appendFile(process.env.GITHUB_STEP_SUMMARY, stepSummary, "utf8");
-}
-if (comment) {
-  if (!hasPullRequestContext) throw new Error("PR comment mode requires a pull_request event.");
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) throw new Error("PR comment mode requires GITHUB_TOKEN.");
-  const body = format === "markdown" ? report : `\`\`\`${format}
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const stepSummary = renderActionStepSummary({
+      report: structuredReport,
+      provider,
+      format,
+      reportPath,
+      commentEnabled: comment,
+      allowWrite,
+      incrementalSummary: incremental?.summary,
+      annotationSummary
+    });
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, stepSummary, "utf8");
+  }
+  if (comment) {
+    if (!hasPullRequestContext) throw new Error("PR comment mode requires a pull_request event.");
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) throw new Error("PR comment mode requires GITHUB_TOKEN.");
+    const body = format === "markdown" ? report : `\`\`\`${format}
 ${report}
 \`\`\``;
-  const response = await fetch(`${githubApiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${prNumber}/comments`, {
-    method: "POST",
-    headers: {
-      ...githubHeaders("application/vnd.github+json"),
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ body })
-  });
-  if (!response.ok) throw new Error(`GitHub comment API returned ${response.status}`);
+    const response = await fetch(`${githubApiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${prNumber}/comments`, {
+      method: "POST",
+      headers: {
+        ...githubHeaders("application/vnd.github+json"),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ body })
+    });
+    if (!response.ok) throw new Error(`GitHub comment API returned ${response.status}`);
+  }
 }

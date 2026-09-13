@@ -1,0 +1,29 @@
+# Unreleased v0.2/current-main security inventory example.
+name: AunoForge Security Inventory
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dhtoan/AunoForge@main
+        id: aunoforge-security
+        with:
+          command: security
+          format: json
+
+      - name: Upload AunoForge security inventory (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: aunoforge-security-inventory
+          path: ${{ steps.aunoforge-security.outputs.report-path }}
+          if-no-files-found: error
