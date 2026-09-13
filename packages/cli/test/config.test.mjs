@@ -40,3 +40,15 @@ test('explicit overrides beat project config, project config beats preset, and p
   const defaults=resolveProjectConfig(validateProjectConfig({schemaVersion:1}));
   assert.equal(defaults.format,'terminal');
 });
+
+test('surface defaults are lowest precedence and do not override preset config or explicit format',()=>{
+  const bare=validateProjectConfig({schemaVersion:1});
+  assert.equal(resolveProjectConfig(bare,{}, {format:'markdown'}).format,'markdown');
+
+  const preset=validateProjectConfig({schemaVersion:1,extends:'security'});
+  assert.equal(resolveProjectConfig(preset,{}, {format:'markdown'}).format,'json');
+
+  const configured=validateProjectConfig({schemaVersion:1,extends:'security',format:'terminal'});
+  assert.equal(resolveProjectConfig(configured,{}, {format:'markdown'}).format,'terminal');
+  assert.equal(resolveProjectConfig(configured,{format:'json'},{format:'markdown'}).format,'json');
+});

@@ -15,6 +15,7 @@ async function capture(argv){
 function git(root,...args){return execFileSync('git',['-C',root,...args],{encoding:'utf8'}).trim();}
 async function releaseRepo(){const root=await mkdtemp(join(tmpdir(),'aunoforge-cli-release-'));git(root,'init');git(root,'config','user.email','t@example.com');git(root,'config','user.name','T');await writeFile(join(root,'x'),'0');git(root,'add','.');git(root,'commit','-m','chore: initial');git(root,'tag','v0.1.0');await writeFile(join(root,'x'),'1');git(root,'add','.');git(root,'commit','-m','feat: deterministic release json');return root;}
 async function configRepo(config){const root=await mkdtemp(join(tmpdir(),'aunoforge-cli-config-'));await mkdir(join(root,'.aunoforge'),{recursive:true});await writeFile(join(root,'.aunoforge','config.json'),JSON.stringify(config,null,2));return root;}
+async function writeConfig(root,config){await mkdir(join(root,'.aunoforge'),{recursive:true});await writeFile(join(root,'.aunoforge','config.json'),JSON.stringify(config,null,2));}
 
 test('triage and reproduce can use a local issue fixture with mock provider', async()=>{
   const fixture=resolve('test/fixtures/github-issue.json');
@@ -44,7 +45,47 @@ test('review command emits SARIF 2.1.0 from the same deterministic report', asyn
   assert.equal(sarif.runs[0].results.some((entry)=>entry.ruleId==='javascript-eval'),true);
 });
 
+test('review inherits project config while explicit markdown and sarif still win',async()=>{
+  const root=await configRepo({schemaVersion:1,format:'json'});
+  const diff=resolve('test/fixtures/sample.diff');
+  const configured=await capture(['review','--root',root,'--diff',diff,'--provider','mock']);
+  assert.equal(configured.code,0);
+  assert.equal(JSON.parse(configured.output).schemaVersion,1);
+  const markdown=await capture(['review','--root',root,'--diff',diff,'--provider','mock','--format','markdown']);
+  assert.match(markdown.output,/^#/);
+  const sarif=await capture(['review','--root',root,'--diff',diff,'--provider','mock','--format','sarif']);
+  assert.equal(JSON.parse(sarif.output).version,'2.1.0');
+});
+
 test('release --format json --dry-run emits deterministic dataset and performs zero repository writes', async()=>{const root=await releaseRepo();const beforeHead=git(root,'rev-parse','HEAD');const beforeStatus=git(root,'status','--porcelain');const beforeTags=git(root,'tag','--list');const result=await capture(['release','--root',root,'--from','v0.1.0','--format','json','--dry-run']);assert.equal(result.code,0);const report=JSON.parse(result.output);assert.equal(report.recommendedBump,'minor');assert.deepEqual(report.categories.Features.map(change=>change.title),['deterministic release json']);assert.equal('published' in report,false);assert.equal(git(root,'rev-parse','HEAD'),beforeHead);assert.equal(git(root,'status','--porcelain'),beforeStatus);assert.equal(git(root,'tag','--list'),beforeTags);});
+
+test('release inherits project config while preserving markdown default and explicit override',async()=>{
+  const configuredRoot=await releaseRepo();
+  await writeConfig(configuredRoot,{schemaVersion:1,format:'json'});
+  const configured=await capture(['release','--root',configuredRoot,'--from','v0.1.0','--dry-run']);
+  assert.equal(configured.code,0);
+  assert.equal(JSON.parse(configured.output).recommendedBump,'minor');
+  const explicit=await capture(['release','--root',configuredRoot,'--from','v0.1.0','--format','markdown','--dry-run']);
+  assert.match(explicit.output,/^# AunoForge Release/m);
+
+  const defaultRoot=await releaseRepo();
+  const defaultResult=await capture(['release','--root',defaultRoot,'--from','v0.1.0','--dry-run']);
+  assert.match(defaultResult.output,/^# AunoForge Release/m);
+});
+
+test('security inherits supported project config and explicit supported format overrides incompatible config',async()=>{
+  const root=await configRepo({schemaVersion:1,format:'json'});
+  await writeFile(join(root,'package.json'),JSON.stringify({name:'fixture',version:'1.0.0',dependencies:{leftpad:'1.0.0'}},null,2));
+  const configured=await capture(['security','--root',root]);
+  assert.equal(configured.code,0);
+  assert.equal(JSON.parse(configured.output).schemaVersion,1);
+
+  await writeConfig(root,{schemaVersion:1,format:'markdown'});
+  await assert.rejects(()=>capture(['security','--root',root]),/security.*terminal or json|terminal or json/i);
+  const explicit=await capture(['security','--root',root,'--format','json']);
+  assert.equal(explicit.code,0);
+  assert.equal(JSON.parse(explicit.output).schemaVersion,1);
+});
 
 test('release rejects unsupported formats clearly', async()=>{const root=await releaseRepo();await assert.rejects(()=>capture(['release','--root',root,'--from','v0.1.0','--format','sarif']),/--format must be terminal, markdown, or json/);});
 

@@ -25,6 +25,8 @@ export type ResolvedAunoForgeConfig = {
   format: ConfigFormat;
 };
 
+type ConfigDefaults = Partial<Pick<ResolvedAunoForgeConfig, "format">>;
+
 const allowedKeys = new Set(["schemaVersion", "extends", "format"]);
 const builtinPresetSet = new Set<string>(builtinPresetIds);
 const presetDefaults: Record<BuiltinPresetId, ResolvedAunoForgeConfig> = {
@@ -79,14 +81,13 @@ export function validateProjectConfig(value: unknown): AunoForgeProjectConfig {
 
 export function resolveProjectConfig(
   config: AunoForgeProjectConfig,
-  overrides: Partial<Pick<ResolvedAunoForgeConfig, "format">> = {}
+  overrides: Partial<Pick<ResolvedAunoForgeConfig, "format">> = {},
+  defaults: ConfigDefaults = {}
 ): ResolvedAunoForgeConfig {
-  const base: ResolvedAunoForgeConfig = config.extends
-    ? { ...presetDefaults[config.extends] }
-    : { format: "terminal" };
+  const preset = config.extends ? presetDefaults[config.extends] : undefined;
   return {
-    ...(base.preset ? { preset: base.preset } : {}),
-    format: overrides.format ?? config.format ?? base.format
+    ...(preset?.preset ? { preset: preset.preset } : {}),
+    format: overrides.format ?? config.format ?? preset?.format ?? defaults.format ?? "terminal"
   };
 }
 
@@ -126,8 +127,9 @@ export async function loadProjectConfigIfPresent(root: string): Promise<AunoForg
 
 export async function resolveRuntimeConfig(
   root: string,
-  overrides: Partial<Pick<ResolvedAunoForgeConfig, "format">> = {}
+  overrides: Partial<Pick<ResolvedAunoForgeConfig, "format">> = {},
+  defaults: ConfigDefaults = {}
 ): Promise<ResolvedAunoForgeConfig> {
   const config = await loadProjectConfigIfPresent(root) ?? { schemaVersion: 1 as const };
-  return resolveProjectConfig(config, overrides);
+  return resolveProjectConfig(config, overrides, defaults);
 }
