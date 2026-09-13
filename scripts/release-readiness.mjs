@@ -34,7 +34,11 @@ await requireFile(resolve(root, 'dist/action/index.mjs'));
 await requireFile(resolve(root, 'dist/action/cli.mjs'));
 
 try {
-  execFileSync('git', ['diff', '--exit-code', '--', 'dist/action'], { cwd: root, stdio: 'pipe' });
+  // Check both index and worktree; plain git diff misses staged and untracked files.
+  const status = execFileSync('git', [
+    '--no-optional-locks', 'status', '--porcelain=v1', '--untracked-files=all', '--', 'dist/action',
+  ], { cwd: root, encoding: 'utf8', stdio: 'pipe' });
+  if (status.length > 0) throw new Error('Uncommitted generated runtime changes');
 } catch {
   throw new Error('Generated dist/action runtime differs from the checked-in tree; run pnpm build:action and commit the result');
 }
