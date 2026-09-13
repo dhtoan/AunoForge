@@ -53,8 +53,7 @@ export type ReleaseNotesResult = {
 
 type Commit = { hash: string; subject: string; author: string; date: string };
 type SectionName = "Added" | "Fixed" | "Security" | "Improved" | "Changed";
-
-const releaseCategories: ReleaseCategory[] = ["Features", "Fixes", "Security", "Breaking", "Maintenance"];
+type PullRequestClassification = { category: ReleaseCategory; evidence: string };
 
 function parseLog(raw: string): Commit[] {
   return raw.split("\n").filter(Boolean).map((line) => {
@@ -85,6 +84,31 @@ function categoryForCommit(subject: string): ReleaseCategory {
   if (/^fix(?:\([^)]*\))?:/i.test(subject)) return "Fixes";
   if (/^security(?:\([^)]*\))?:/i.test(subject)) return "Security";
   return "Maintenance";
+}
+
+function normalizeLabel(label: string): string {
+  return label.trim().toLowerCase();
+}
+
+function classifyPullRequest(pr: ReleasePullRequest): PullRequestClassification {
+  const labels = new Set(pr.labels.map(normalizeLabel));
+  const labelRules: Array<[string, ReleaseCategory]> = [
+    ["breaking", "Breaking"],
+    ["feature", "Features"],
+    ["fix", "Fixes"],
+    ["security", "Security"],
+    ["maintenance", "Maintenance"]
+  ];
+  for (const [label, category] of labelRules) {
+    if (labels.has(label)) return { category, evidence: `label:${label}` };
+  }
+
+  if (pr.breaking) return { category: "Breaking", evidence: "metadata:breaking" };
+  if (isBreaking(pr.title)) return { category: "Breaking", evidence: "title:breaking" };
+  if (/^feat(?:\([^)]*\))?:/i.test(pr.title)) return { category: "Features", evidence: "title:feat" };
+  if (/^fix(?:\([^)]*\))?:/i.test(pr.title)) return { category: "Fixes", evidence: "title:fix" };
+  if (/^security(?:\([^)]*\))?:/i.test(pr.title)) return { category: "Security", evidence: "title:security" };
+  return { category: "Maintenance", evidence: "fallback:maintenance" };
 }
 
 function recommendedBump(categories: Record<ReleaseCategory, ReleaseChange[]>): RecommendedBump {
@@ -139,10 +163,20 @@ export async function generateReleaseNotes(options: GenerateReleaseNotesOptions)
       options.github.since
     );
     for (const pr of prs) {
+      const text = stripConventionalPrefix(pr.title);
       const author = pr.author ? ` by @${pr.author}` : "";
-      pullRequestLines.push(`#${pr.number} ${stripConventionalPrefix(pr.title)}${author}`);
+      pullRequestLines.push(`#${pr.number} ${text}${author}`);
       if (pr.author) contributors.add(pr.author);
-      if (pr.breaking) breakingChanges.push(`#${pr.number} ${stripConventionalPrefix(pr.title)}`);
+      if (pr.breaking) breakingChanges.push(`#${pr.number} ${text}`);
+      const classification = classifyPullRequest(pr);
+      categories[classification.category].push({
+        category: classification.category,
+        title: text,
+        source: "pull-request",
+        pullRequest: pr.number,
+        ...(pr.author ? { author: pr.author } : {}),
+        evidence: classification.evidence
+      });
     }
   }
 
