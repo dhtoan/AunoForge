@@ -1,8 +1,8 @@
 // scripts/action.mjs
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readFile, writeFile, appendFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { readFile as readFile2, writeFile, appendFile } from "node:fs/promises";
+import { join as join2, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // packages/core/dist/contracts.js
@@ -703,6 +703,105 @@ function renderReport(report, format2, incremental) {
   return renderIncrementalTerminal(incremental);
 }
 
+// packages/cli/dist/config.js
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+var builtinPresetIds = [
+  "recommended",
+  "minimal",
+  "strict",
+  "security",
+  "node",
+  "python",
+  "wordpress"
+];
+var allowedKeys = /* @__PURE__ */ new Set(["schemaVersion", "extends", "format"]);
+var builtinPresetSet = new Set(builtinPresetIds);
+var presetDefaults = {
+  recommended: { preset: "recommended", format: "terminal" },
+  minimal: { preset: "minimal", format: "terminal" },
+  strict: { preset: "strict", format: "terminal" },
+  security: { preset: "security", format: "json" },
+  node: { preset: "node", format: "terminal" },
+  python: { preset: "python", format: "terminal" },
+  wordpress: { preset: "wordpress", format: "terminal" }
+};
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function securitySensitiveError(key) {
+  if (/allow[-_]?write|allowWrite/i.test(key)) {
+    return new Error(`${key} cannot be set in project configuration; write permission requires an explicit runtime flag`);
+  }
+  if (/token|api[-_]?key|apiKey|credential|secret/i.test(key)) {
+    return new Error(`${key} cannot be set in project configuration; credentials must be supplied at runtime`);
+  }
+  return void 0;
+}
+function validateProjectConfig(value) {
+  if (!isRecord(value))
+    throw new Error("Configuration must be a JSON object");
+  for (const key of Object.keys(value)) {
+    const sensitive = securitySensitiveError(key);
+    if (sensitive)
+      throw sensitive;
+    if (!allowedKeys.has(key))
+      throw new Error(`Unknown configuration key: ${key}`);
+  }
+  if (value.schemaVersion === void 0)
+    throw new Error("schemaVersion is required");
+  if (value.schemaVersion !== 1)
+    throw new Error("schemaVersion must be 1");
+  if (value.extends !== void 0 && (typeof value.extends !== "string" || !builtinPresetSet.has(value.extends))) {
+    throw new Error("extends must be a built-in preset");
+  }
+  if (value.format !== void 0 && value.format !== "terminal" && value.format !== "markdown" && value.format !== "json") {
+    throw new Error("format must be terminal, markdown, or json");
+  }
+  const config = { schemaVersion: 1 };
+  if (value.extends !== void 0)
+    config.extends = value.extends;
+  if (value.format !== void 0)
+    config.format = value.format;
+  return config;
+}
+function resolveProjectConfig(config, overrides = {}, defaults = {}) {
+  const preset = config.extends ? presetDefaults[config.extends] : void 0;
+  return {
+    ...preset?.preset ? { preset: preset.preset } : {},
+    format: overrides.format ?? config.format ?? preset?.format ?? defaults.format ?? "terminal"
+  };
+}
+async function readProjectConfig(root) {
+  const path = join(root, ".aunoforge", "config.json");
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    const code = error.code;
+    if (code === "ENOENT")
+      return void 0;
+    throw error;
+  }
+}
+function parseProjectConfig(raw, path) {
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Configuration file is not valid JSON: ${path}`);
+  }
+  return validateProjectConfig(parsed);
+}
+async function loadProjectConfigIfPresent(root) {
+  const path = join(root, ".aunoforge", "config.json");
+  const raw = await readProjectConfig(root);
+  return raw === void 0 ? void 0 : parseProjectConfig(raw, path);
+}
+async function resolveRuntimeConfig(root, overrides = {}, defaults = {}) {
+  const config = await loadProjectConfigIfPresent(root) ?? { schemaVersion: 1 };
+  return resolveProjectConfig(config, overrides, defaults);
+}
+
 // scripts/action-annotations.mjs
 function escapeCommandProperty(value) {
   return String(value).replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A").replaceAll(":", "%3A").replaceAll(",", "%2C");
@@ -781,12 +880,12 @@ function renderActionStepSummary({
 var sourceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 var actionRoot = resolve(process.env.GITHUB_ACTION_PATH || sourceRoot);
 var packagedCli = fileURLToPath(new URL("./cli.mjs", import.meta.url));
-var cliPath = existsSync(packagedCli) ? packagedCli : join(actionRoot, "dist/action/cli.mjs");
+var cliPath = existsSync(packagedCli) ? packagedCli : join2(actionRoot, "dist/action/cli.mjs");
 var workspace = resolve(process.env.GITHUB_WORKSPACE || process.cwd());
 var command = process.env.INPUT_COMMAND || "review";
 var provider = process.env.INPUT_PROVIDER || "mock";
 var model = process.env.INPUT_MODEL || "";
-var format = process.env.INPUT_FORMAT || "markdown";
+var formatInput = process.env.INPUT_FORMAT || "";
 var advisory = process.env.INPUT_ADVISORY || "";
 var baselineInput = process.env.INPUT_BASELINE || "";
 var comment = (process.env.INPUT_COMMENT || "false").toLowerCase() === "true";
@@ -794,6 +893,11 @@ var allowWrite = (process.env.INPUT_ALLOW_WRITE || "false").toLowerCase() === "t
 var githubApiBase = (process.env.GITHUB_API_URL || "https://api.github.com").replace(/\/$/, "");
 var reviewCommentMarker = "<!-- aunoforge:review-comment -->";
 if (!["review", "security"].includes(command)) throw new Error(`Unsupported AunoForge Action command: ${command}`);
+var format = command === "review" && formatInput === "sarif" ? "sarif" : (await resolveRuntimeConfig(
+  workspace,
+  formatInput ? { format: formatInput } : {},
+  { format: command === "review" ? "markdown" : "terminal" }
+)).format;
 if (command === "review") {
   if (comment && !allowWrite) throw new Error("comment=true requires allow-write=true and pull-requests: write permission.");
   if (!["mock", "codex", "claude"].includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
@@ -829,7 +933,7 @@ var eventPath = process.env.GITHUB_EVENT_PATH;
 var event = {};
 if (eventPath) {
   try {
-    event = JSON.parse(await readFile(eventPath, "utf8"));
+    event = JSON.parse(await readFile2(eventPath, "utf8"));
   } catch {
     event = {};
   }
@@ -876,7 +980,7 @@ if (command === "security") {
   const report = await runNode(args);
   process.stdout.write(report);
   const extension = format === "json" ? "json" : "txt";
-  const reportPath = join(workspace, `aunoforge-security.${extension}`);
+  const reportPath = join2(workspace, `aunoforge-security.${extension}`);
   await writeFile(reportPath, report, "utf8");
   if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `report-path=${reportPath}
 `, "utf8");
@@ -886,12 +990,12 @@ if (command === "security") {
   if (hasPullRequestContext) args.push("--pr", String(prNumber), "--owner", owner, "--repo", repo);
   const rawReport = await runNode(args);
   const structuredReport = validateReviewReport(JSON.parse(rawReport));
-  const baseline = baselineInput ? validateBaselineReport(JSON.parse(await readFile(resolve(workspace, baselineInput), "utf8"))) : void 0;
+  const baseline = baselineInput ? validateBaselineReport(JSON.parse(await readFile2(resolve(workspace, baselineInput), "utf8"))) : void 0;
   const incremental = baseline ? compareReviewReports(baseline, structuredReport) : void 0;
   const report = renderReport(structuredReport, format, incremental);
   process.stdout.write(report);
   const extension = format === "json" ? "json" : format === "markdown" ? "md" : format === "sarif" ? "sarif" : "txt";
-  const reportPath = join(workspace, `aunoforge-review.${extension}`);
+  const reportPath = join2(workspace, `aunoforge-review.${extension}`);
   await writeFile(reportPath, report, "utf8");
   if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `report-path=${reportPath}
 `, "utf8");
