@@ -50,7 +50,9 @@ test('review inherits project config while explicit markdown and sarif still win
   const diff=resolve('test/fixtures/sample.diff');
   const configured=await capture(['review','--root',root,'--diff',diff,'--provider','mock']);
   assert.equal(configured.code,0);
-  assert.equal(JSON.parse(configured.output).schemaVersion,1);
+  const configuredReport=JSON.parse(configured.output);
+  assert.equal(Array.isArray(configuredReport.findings),true);
+  assert.equal(configuredReport.findings.some((finding)=>finding.category==='javascript-eval'),true);
   const markdown=await capture(['review','--root',root,'--diff',diff,'--provider','mock','--format','markdown']);
   assert.match(markdown.output,/^#/);
   const sarif=await capture(['review','--root',root,'--diff',diff,'--provider','mock','--format','sarif']);
@@ -66,11 +68,11 @@ test('release inherits project config while preserving markdown default and expl
   assert.equal(configured.code,0);
   assert.equal(JSON.parse(configured.output).recommendedBump,'minor');
   const explicit=await capture(['release','--root',configuredRoot,'--from','v0.1.0','--format','markdown','--dry-run']);
-  assert.match(explicit.output,/^# AunoForge Release/m);
+  assert.match(explicit.output,/^## Release notes/m);
 
   const defaultRoot=await releaseRepo();
   const defaultResult=await capture(['release','--root',defaultRoot,'--from','v0.1.0','--dry-run']);
-  assert.match(defaultResult.output,/^# AunoForge Release/m);
+  assert.match(defaultResult.output,/^## Release notes/m);
 });
 
 test('security inherits supported project config and explicit supported format overrides incompatible config',async()=>{
@@ -78,13 +80,14 @@ test('security inherits supported project config and explicit supported format o
   await writeFile(join(root,'package.json'),JSON.stringify({name:'fixture',version:'1.0.0',dependencies:{leftpad:'1.0.0'}},null,2));
   const configured=await capture(['security','--root',root]);
   assert.equal(configured.code,0);
-  assert.equal(JSON.parse(configured.output).schemaVersion,1);
+  const configuredReport=JSON.parse(configured.output);
+  assert.equal(Array.isArray(configuredReport.packages),true);
 
   await writeConfig(root,{schemaVersion:1,format:'markdown'});
   await assert.rejects(()=>capture(['security','--root',root]),/security.*terminal or json|terminal or json/i);
   const explicit=await capture(['security','--root',root,'--format','json']);
   assert.equal(explicit.code,0);
-  assert.equal(JSON.parse(explicit.output).schemaVersion,1);
+  assert.equal(Array.isArray(JSON.parse(explicit.output).packages),true);
 });
 
 test('release rejects unsupported formats clearly', async()=>{const root=await releaseRepo();await assert.rejects(()=>capture(['release','--root',root,'--from','v0.1.0','--format','sarif']),/--format must be terminal, markdown, or json/);});
