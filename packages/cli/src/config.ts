@@ -90,17 +90,18 @@ export function resolveProjectConfig(
   };
 }
 
-export async function loadProjectConfig(root: string): Promise<AunoForgeProjectConfig> {
+async function readProjectConfig(root: string): Promise<string | undefined> {
   const path = join(root, ".aunoforge", "config.json");
-  let raw: string;
   try {
-    raw = await readFile(path, "utf8");
+    return await readFile(path, "utf8");
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") throw new Error(`Configuration file not found: ${path}`);
+    if (code === "ENOENT") return undefined;
     throw error;
   }
+}
 
+function parseProjectConfig(raw: string, path: string): AunoForgeProjectConfig {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -108,4 +109,25 @@ export async function loadProjectConfig(root: string): Promise<AunoForgeProjectC
     throw new Error(`Configuration file is not valid JSON: ${path}`);
   }
   return validateProjectConfig(parsed);
+}
+
+export async function loadProjectConfig(root: string): Promise<AunoForgeProjectConfig> {
+  const path = join(root, ".aunoforge", "config.json");
+  const raw = await readProjectConfig(root);
+  if (raw === undefined) throw new Error(`Configuration file not found: ${path}`);
+  return parseProjectConfig(raw, path);
+}
+
+export async function loadProjectConfigIfPresent(root: string): Promise<AunoForgeProjectConfig | undefined> {
+  const path = join(root, ".aunoforge", "config.json");
+  const raw = await readProjectConfig(root);
+  return raw === undefined ? undefined : parseProjectConfig(raw, path);
+}
+
+export async function resolveRuntimeConfig(
+  root: string,
+  overrides: Partial<Pick<ResolvedAunoForgeConfig, "format">> = {}
+): Promise<ResolvedAunoForgeConfig> {
+  const config = await loadProjectConfigIfPresent(root) ?? { schemaVersion: 1 as const };
+  return resolveProjectConfig(config, overrides);
 }
