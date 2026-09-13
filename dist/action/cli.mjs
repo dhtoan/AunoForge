@@ -1978,6 +1978,34 @@ function categoryForCommit(subject) {
     return "Security";
   return "Maintenance";
 }
+function normalizeLabel(label) {
+  return label.trim().toLowerCase();
+}
+function classifyPullRequest(pr) {
+  const labels3 = new Set(pr.labels.map(normalizeLabel));
+  const labelRules = [
+    ["breaking", "Breaking"],
+    ["feature", "Features"],
+    ["fix", "Fixes"],
+    ["security", "Security"],
+    ["maintenance", "Maintenance"]
+  ];
+  for (const [label, category] of labelRules) {
+    if (labels3.has(label))
+      return { category, evidence: `label:${label}` };
+  }
+  if (pr.breaking)
+    return { category: "Breaking", evidence: "metadata:breaking" };
+  if (isBreaking(pr.title))
+    return { category: "Breaking", evidence: "title:breaking" };
+  if (/^feat(?:\([^)]*\))?:/i.test(pr.title))
+    return { category: "Features", evidence: "title:feat" };
+  if (/^fix(?:\([^)]*\))?:/i.test(pr.title))
+    return { category: "Fixes", evidence: "title:fix" };
+  if (/^security(?:\([^)]*\))?:/i.test(pr.title))
+    return { category: "Security", evidence: "title:security" };
+  return { category: "Maintenance", evidence: "fallback:maintenance" };
+}
 function recommendedBump(categories) {
   if (categories.Breaking.length)
     return "major";
@@ -2033,12 +2061,22 @@ async function generateReleaseNotes(options) {
   if (options.github) {
     const prs = await options.github.reader.listMergedPullRequestsSince({ owner: options.github.owner, repo: options.github.repo }, options.github.since);
     for (const pr of prs) {
+      const text = stripConventionalPrefix(pr.title);
       const author = pr.author ? ` by @${pr.author}` : "";
-      pullRequestLines.push(`#${pr.number} ${stripConventionalPrefix(pr.title)}${author}`);
+      pullRequestLines.push(`#${pr.number} ${text}${author}`);
       if (pr.author)
         contributors.add(pr.author);
       if (pr.breaking)
-        breakingChanges.push(`#${pr.number} ${stripConventionalPrefix(pr.title)}`);
+        breakingChanges.push(`#${pr.number} ${text}`);
+      const classification = classifyPullRequest(pr);
+      categories[classification.category].push({
+        category: classification.category,
+        title: text,
+        source: "pull-request",
+        pullRequest: pr.number,
+        ...pr.author ? { author: pr.author } : {},
+        evidence: classification.evidence
+      });
     }
   }
   const parts = ["## Release notes", ""];
