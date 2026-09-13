@@ -17,7 +17,7 @@ inputs:
   format:
     description: "Report format: markdown, json, terminal, or sarif. Security supports json or terminal."
     required: false
-    default: markdown
+    default: ''
   advisory:
     description: Optional OSV advisory enrichment for command=security. Leave empty for offline inventory.
     required: false

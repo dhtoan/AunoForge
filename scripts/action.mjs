@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { validateReviewReport } from '../packages/core/dist/index.js';
 import { compareReviewReports, validateBaselineReport } from '../packages/comparison/dist/index.js';
 import { renderReport, selectGitHubAnnotations } from '../packages/reporters/dist/index.js';
+import { resolveRuntimeConfig } from '../packages/cli/dist/config.js';
 import { emitGitHubAnnotations } from './action-annotations.mjs';
 import { renderActionStepSummary } from './action-summary.mjs';
 
@@ -17,7 +18,7 @@ const workspace = resolve(process.env.GITHUB_WORKSPACE || process.cwd());
 const command = process.env.INPUT_COMMAND || 'review';
 const provider = process.env.INPUT_PROVIDER || 'mock';
 const model = process.env.INPUT_MODEL || '';
-const format = process.env.INPUT_FORMAT || 'markdown';
+const formatInput = process.env.INPUT_FORMAT || '';
 const advisory = process.env.INPUT_ADVISORY || '';
 const baselineInput = process.env.INPUT_BASELINE || '';
 const comment = (process.env.INPUT_COMMENT || 'false').toLowerCase() === 'true';
@@ -26,6 +27,14 @@ const githubApiBase = (process.env.GITHUB_API_URL || 'https://api.github.com').r
 const reviewCommentMarker = '<!-- aunoforge:review-comment -->';
 
 if (!['review', 'security'].includes(command)) throw new Error(`Unsupported AunoForge Action command: ${command}`);
+const format = command === 'review' && formatInput === 'sarif'
+  ? 'sarif'
+  : (await resolveRuntimeConfig(
+      workspace,
+      formatInput ? { format: formatInput } : {},
+      { format: command === 'review' ? 'markdown' : 'terminal' },
+    )).format;
+
 if (command === 'review') {
   if (comment && !allowWrite) throw new Error('comment=true requires allow-write=true and pull-requests: write permission.');
   if (!['mock','codex','claude'].includes(provider)) throw new Error(`Unsupported provider: ${provider}`);
