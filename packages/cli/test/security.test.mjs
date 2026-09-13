@@ -187,7 +187,10 @@ test('security command enriches only resolved lockfile versions when OSV is expl
         advisories: [],
       },
     ]);
-    assert.equal(report.sources[0].inventory[0].declaredVersion, '^9.0.0');
+    assert.equal(
+      report.sources.find((source) => source.path === 'package.json')?.inventory[0]?.declaredVersion,
+      '^9.0.0',
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
