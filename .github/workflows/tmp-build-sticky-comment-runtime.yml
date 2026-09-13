@@ -1,0 +1,37 @@
+name: Temporary sticky comment runtime refresh
+
+on:
+  push:
+    branches:
+      - tmp/sticky-comment-runtime-44
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.15.1 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:action
+      - name: Preserve generated Action entry runtime only
+        shell: bash
+        run: |
+          cp dist/action/index.mjs /tmp/aunoforge-index.mjs
+          git diff --exit-code -- dist/action/cli.mjs
+          git checkout feat/v0.2-sticky-pr-comments
+          cp /tmp/aunoforge-index.mjs dist/action/index.mjs
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add dist/action/index.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "build: refresh packaged sticky comment runtime"
+          git push origin HEAD:feat/v0.2-sticky-pr-comments
