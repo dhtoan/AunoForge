@@ -279,7 +279,7 @@ export function parsePnpmLockInventory(
     const line = lines[index]!;
     if (!line.trim() || line.trimStart().startsWith("#")) continue;
 
-    const importerMatch = line.match(/^  (.+):\s*$/);
+    const importerMatch = line.match(/^  (\S.*):\s*$/);
     if (importerMatch) {
       flushDependency();
       importerPath = unquoteYamlScalar(importerMatch[1]!);
@@ -294,7 +294,7 @@ export function parsePnpmLockInventory(
       continue;
     }
 
-    const dependencyMatch = line.match(/^      (.+):\s*$/);
+    const dependencyMatch = line.match(/^      (\S.*):\s*$/);
     if (dependencyMatch && scope && importerPath) {
       flushDependency();
       dependencyName = unquoteYamlScalar(dependencyMatch[1]!);
@@ -328,7 +328,7 @@ export function parsePnpmLockInventory(
       if (!line.trim() || line.trimStart().startsWith("#")) continue;
       if (/^[^\s]/.test(line)) break;
 
-      const packageMatch = line.match(/^  (.+):\s*(?:\{.*\})?\s*$/);
+      const packageMatch = line.match(/^  (\S.*):\s*(?:\{.*\})?\s*$/);
       if (!packageMatch) continue;
       const identity = pnpmPackageIdentity(packageMatch[1]!);
       if (!identity) continue;
