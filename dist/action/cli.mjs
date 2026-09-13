@@ -1944,6 +1944,7 @@ function renderReview(report, format = "terminal") {
 }
 
 // packages/cli/dist/release.js
+var releaseCategories = ["Breaking", "Features", "Fixes", "Security", "Maintenance"];
 function parseLog(raw) {
   return raw.split("\n").filter(Boolean).map((line) => {
     const [hash = "", subject = "", author = "", date = ""] = line.split("	");
@@ -2029,6 +2030,32 @@ function renderSection(name, lines) {
     return "";
   return `### ${name}
 ${lines.map((line) => `- ${line}`).join("\n")}
+`;
+}
+function renderRelease(result, format) {
+  if (format === "markdown")
+    return result.markdown;
+  if (format === "json")
+    return `${JSON.stringify(result.dataset, null, 2)}
+`;
+  const lines = [
+    "AunoForge release",
+    `Recommended bump: ${result.dataset.recommendedBump}`,
+    `Commits: ${result.commitCount}`
+  ];
+  for (const category of releaseCategories) {
+    const changes = result.dataset.categories[category];
+    if (!changes.length)
+      continue;
+    lines.push("", `${category}:`);
+    for (const change of changes) {
+      const source = change.pullRequest ? `PR #${change.pullRequest}` : change.commit ? `commit ${change.commit.slice(0, 8)}` : change.source;
+      lines.push(`- ${change.title} (${source}; ${change.evidence})`);
+    }
+  }
+  if (result.dataset.contributors.length)
+    lines.push("", `Contributors: ${result.dataset.contributors.map((name) => `@${name}`).join(", ")}`);
+  return `${lines.join("\n")}
 `;
 }
 async function generateReleaseNotes(options) {
@@ -2558,6 +2585,12 @@ function reviewFormatValue(args) {
     throw new Error("--format must be terminal, markdown, json, or sarif");
   return value;
 }
+function releaseFormatValue(args) {
+  const value = argValue(args, "--format") ?? "markdown";
+  if (value !== "terminal" && value !== "markdown" && value !== "json")
+    throw new Error("--format must be terminal, markdown, or json");
+  return value;
+}
 function securityFormatValue(args) {
   const value = argValue(args, "--format") ?? "terminal";
   if (value !== "terminal" && value !== "json")
@@ -2656,11 +2689,12 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     return 0;
   }
   if (command === "release") {
+    const format = releaseFormatValue(args);
     const from = argValue(args, "--from");
     const owner = argValue(args, "--owner"), repo = argValue(args, "--repo"), since = argValue(args, "--since");
     const github = owner && repo && since ? { reader: githubFromEnv(), owner, repo, since } : void 0;
     const result = await generateReleaseNotes({ root, ...from ? { from } : {}, ...github ? { github } : {} });
-    console.log(result.markdown.trimEnd());
+    console.log(renderRelease(result, format).trimEnd());
     return 0;
   }
   if (command === "recipes") {
