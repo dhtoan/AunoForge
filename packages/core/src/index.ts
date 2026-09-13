@@ -8,3 +8,4 @@ export * from "./audit.js";
 export * from "./evidence.js";
 export * from "./normalize.js";
 export * from "./security-inventory.js";
+export * from "./security-advisory.js";
