@@ -26,15 +26,35 @@ export type GenerateReleaseNotesOptions = {
   };
 };
 
+export type ReleaseCategory = "Features" | "Fixes" | "Security" | "Breaking" | "Maintenance";
+export type RecommendedBump = "major" | "minor" | "patch" | "none";
+export type ReleaseChange = {
+  category: ReleaseCategory;
+  title: string;
+  source: "commit" | "pull-request";
+  commit?: string;
+  pullRequest?: number;
+  author?: string;
+  evidence: string;
+};
+export type ReleaseDataset = {
+  categories: Record<ReleaseCategory, ReleaseChange[]>;
+  recommendedBump: RecommendedBump;
+  contributors: string[];
+};
+
 export type ReleaseNotesResult = {
   markdown: string;
   commitCount: number;
   breakingChanges: string[];
   contributors: string[];
+  dataset: ReleaseDataset;
 };
 
 type Commit = { hash: string; subject: string; author: string; date: string };
 type SectionName = "Added" | "Fixed" | "Security" | "Improved" | "Changed";
+
+const releaseCategories: ReleaseCategory[] = ["Features", "Fixes", "Security", "Breaking", "Maintenance"];
 
 function parseLog(raw: string): Commit[] {
   return raw.split("\n").filter(Boolean).map((line) => {
@@ -59,6 +79,31 @@ function isBreaking(subject: string): boolean {
   return /^\w+(?:\([^)]*\))?!:/i.test(subject) || /BREAKING CHANGE:/i.test(subject);
 }
 
+function categoryForCommit(subject: string): ReleaseCategory {
+  if (isBreaking(subject)) return "Breaking";
+  if (/^feat(?:\([^)]*\))?:/i.test(subject)) return "Features";
+  if (/^fix(?:\([^)]*\))?:/i.test(subject)) return "Fixes";
+  if (/^security(?:\([^)]*\))?:/i.test(subject)) return "Security";
+  return "Maintenance";
+}
+
+function recommendedBump(categories: Record<ReleaseCategory, ReleaseChange[]>): RecommendedBump {
+  if (categories.Breaking.length) return "major";
+  if (categories.Features.length) return "minor";
+  if (categories.Fixes.length || categories.Security.length || categories.Maintenance.length) return "patch";
+  return "none";
+}
+
+function emptyCategories(): Record<ReleaseCategory, ReleaseChange[]> {
+  return {
+    Features: [],
+    Fixes: [],
+    Security: [],
+    Breaking: [],
+    Maintenance: []
+  };
+}
+
 function renderSection(name: string, lines: string[]): string {
   if (!lines.length) return "";
   return `### ${name}\n${lines.map((line) => `- ${line}`).join("\n")}\n`;
@@ -69,6 +114,7 @@ export async function generateReleaseNotes(options: GenerateReleaseNotesOptions)
   const sections = new Map<SectionName, string[]>([
     ["Added", []], ["Fixed", []], ["Security", []], ["Improved", []], ["Changed", []]
   ]);
+  const categories = emptyCategories();
   const breakingChanges: string[] = [];
   const contributors = new Set<string>();
 
@@ -76,6 +122,14 @@ export async function generateReleaseNotes(options: GenerateReleaseNotesOptions)
     const text = stripConventionalPrefix(commit.subject);
     sections.get(sectionFor(commit.subject))!.push(text);
     if (isBreaking(commit.subject)) breakingChanges.push(text);
+    const category = categoryForCommit(commit.subject);
+    categories[category].push({
+      category,
+      title: text,
+      source: "commit",
+      commit: commit.hash,
+      evidence: `commit:${commit.hash}`
+    });
   }
 
   const pullRequestLines: string[] = [];
@@ -109,10 +163,17 @@ export async function generateReleaseNotes(options: GenerateReleaseNotesOptions)
     parts.push("", "### Contributors", ...[...contributors].sort().map((name) => `- @${name}`));
   }
 
+  const dataset: ReleaseDataset = {
+    categories,
+    recommendedBump: recommendedBump(categories),
+    contributors: [...contributors].sort()
+  };
+
   return {
     markdown: `${parts.join("\n").trimEnd()}\n`,
     commitCount: commits.length,
     breakingChanges,
-    contributors: [...contributors].sort()
+    contributors: dataset.contributors,
+    dataset
   };
 }
