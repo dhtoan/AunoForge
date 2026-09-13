@@ -38,7 +38,7 @@ function enumValue(value, allowed, label) {
 function validateFinding(input) {
   assertRecord(input, "finding");
   assertString(input.id, "id");
-  const severity = enumValue(input.severity, severities, "severity");
+  const severity2 = enumValue(input.severity, severities, "severity");
   assertString(input.category, "category");
   assertString(input.title, "title");
   assertStringArray(input.evidence, "evidence");
@@ -74,7 +74,7 @@ function validateFinding(input) {
   }
   return {
     id: input.id,
-    severity,
+    severity: severity2,
     category: input.category,
     title: input.title,
     evidence: input.evidence,
@@ -580,6 +580,105 @@ function parsePnpmLockInventory(source, sourcePath = "pnpm-lock.yaml") {
   result.sort((a, b) => a.name.localeCompare(b.name) || a.resolvedVersion.localeCompare(b.resolvedVersion) || (a.relationship === b.relationship ? 0 : a.relationship === "direct" ? -1 : 1));
   return result;
 }
+
+// packages/core/dist/security-advisory.js
+function record(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : void 0;
+}
+function severity(value) {
+  if (typeof value !== "string")
+    return void 0;
+  switch (value.toLowerCase()) {
+    case "critical":
+      return "critical";
+    case "high":
+      return "high";
+    case "moderate":
+    case "medium":
+      return "medium";
+    case "low":
+      return "low";
+    default:
+      return void 0;
+  }
+}
+function fixedVersions(vulnerability) {
+  const fixed = /* @__PURE__ */ new Set();
+  if (!Array.isArray(vulnerability.affected))
+    return [];
+  for (const affectedValue of vulnerability.affected) {
+    const affected = record(affectedValue);
+    if (!affected || !Array.isArray(affected.ranges))
+      continue;
+    for (const rangeValue of affected.ranges) {
+      const range = record(rangeValue);
+      if (!range || !Array.isArray(range.events))
+        continue;
+      for (const eventValue of range.events) {
+        const event = record(eventValue);
+        if (event && typeof event.fixed === "string" && event.fixed)
+          fixed.add(event.fixed);
+      }
+    }
+  }
+  return [...fixed].sort();
+}
+function parseAdvisory(value) {
+  const vulnerability = record(value);
+  if (!vulnerability || typeof vulnerability.id !== "string" || !vulnerability.id)
+    return void 0;
+  const databaseSpecific = record(vulnerability.database_specific);
+  const normalizedSeverity = severity(databaseSpecific?.severity);
+  return {
+    id: vulnerability.id,
+    ...normalizedSeverity ? { severity: normalizedSeverity } : {},
+    fixedVersions: fixedVersions(vulnerability),
+    provenance: "osv",
+    confidence: 1
+  };
+}
+var OsvAdvisoryAdapter = class {
+  id = "osv";
+  endpoint;
+  transport;
+  constructor(options = {}) {
+    this.endpoint = options.endpoint ?? "https://api.osv.dev/v1/querybatch";
+    this.transport = options.transport ?? this.defaultTransport.bind(this);
+  }
+  async defaultTransport(request, signal) {
+    const response = await fetch(request.url, {
+      method: "POST",
+      signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request.body)
+    });
+    if (!response.ok)
+      throw new Error(`OSV querybatch returned ${response.status}`);
+    return response.json();
+  }
+  async lookup(packages, signal) {
+    const ordered = [...packages].sort((a, b) => a.ecosystem.localeCompare(b.ecosystem) || a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+    if (ordered.length === 0)
+      return [];
+    const body = {
+      queries: ordered.map((item) => ({
+        package: { ecosystem: item.ecosystem, name: item.name },
+        version: item.version
+      }))
+    };
+    const raw = record(await this.transport({ url: this.endpoint, body }, signal));
+    const results = raw?.results;
+    if (!Array.isArray(results) || results.length !== ordered.length) {
+      throw new Error("Invalid OSV querybatch response");
+    }
+    return ordered.map((item, index) => {
+      const result = record(results[index]);
+      const advisories = Array.isArray(result?.vulns) ? result.vulns.map(parseAdvisory).filter((entry) => entry !== void 0) : [];
+      advisories.sort((a, b) => a.id.localeCompare(b.id));
+      return { package: item, advisories };
+    });
+  }
+};
 
 // packages/comparison/dist/fingerprint.js
 import { createHash } from "node:crypto";
@@ -1271,10 +1370,10 @@ var severityRank2 = {
   high: 3,
   critical: 4
 };
-function levelFor(severity) {
-  if (severity === "critical" || severity === "high")
+function levelFor(severity2) {
+  if (severity2 === "critical" || severity2 === "high")
     return "error";
-  if (severity === "medium")
+  if (severity2 === "medium")
     return "warning";
   return "note";
 }
@@ -1600,8 +1699,8 @@ async function triageIssue(options) {
   });
   const response = await options.provider.generate({ ...context, outputKind: "triage-report/v1" });
   const d = response.data;
-  const severity = stringValue(d.severity, "severity");
-  if (!severities2.has(severity))
+  const severity2 = stringValue(d.severity, "severity");
+  if (!severities2.has(severity2))
     throw new Error("severity must be critical, high, medium, low, or info");
   if (typeof d.confidence !== "number" || d.confidence < 0 || d.confidence > 1)
     throw new Error("confidence must be between 0 and 1");
@@ -1610,7 +1709,7 @@ async function triageIssue(options) {
     issue: { number: issue.number, title: issue.title, ...issue.url ? { url: issue.url } : {} },
     type: stringValue(d.type, "type"),
     component: stringValue(d.component, "component"),
-    severity,
+    severity: severity2,
     confidence: d.confidence,
     suggestedLabels: stringArray(d.suggestedLabels, "suggestedLabels"),
     duplicateCandidates: duplicates,
@@ -1949,7 +2048,7 @@ var tools = /* @__PURE__ */ new Set([
   "shell.execute",
   "network.fetch"
 ]);
-function record(value, label) {
+function record2(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error(`${label} must be an object`);
   return value;
@@ -1970,7 +2069,7 @@ function permission(value, label) {
   return value;
 }
 function validateRecipe(input) {
-  const r = record(input, "recipe");
+  const r = record2(input, "recipe");
   for (const key of Object.keys(r))
     if (!allowedFields.has(key))
       throw new Error(`unknown recipe field: ${key}`);
@@ -1980,21 +2079,21 @@ function validateRecipe(input) {
   const name = str2(r.name, "name");
   if (!Number.isInteger(r.version) || r.version < 1)
     throw new Error("version must be a positive integer");
-  const trust = record(r.trust, "trust");
+  const trust = record2(r.trust, "trust");
   if (!["builtin", "community", "local"].includes(String(trust.level)))
     throw new Error("trust.level must be builtin, community, or local");
-  const permissions = record(r.permissions, "permissions");
-  const output = record(r.output, "output");
+  const permissions = record2(r.permissions, "permissions");
+  const output = record2(r.output, "output");
   const rawTools = strArray(r.tools, "tools");
   for (const tool of rawTools)
     if (!tools.has(tool))
       throw new Error(`unknown tool capability: ${tool}`);
   let requires;
   if (r.requires !== void 0) {
-    const req = record(r.requires, "requires");
+    const req = record2(r.requires, "requires");
     let provider;
     if (req.provider !== void 0) {
-      const p = record(req.provider, "requires.provider");
+      const p = record2(req.provider, "requires.provider");
       provider = {};
       for (const key of ["structuredOutput", "toolCalling", "largeContext", "streaming", "patchGeneration"]) {
         if (p[key] !== void 0) {
@@ -2208,7 +2307,27 @@ function parseSource(format, source, sourcePath) {
     return parsePackageLockInventory(source, sourcePath);
   return parsePnpmLockInventory(source, sourcePath);
 }
-async function runSecurity(root) {
+function advisoryPackages(sources) {
+  const packages = /* @__PURE__ */ new Map();
+  for (const source of sources) {
+    if (source.status !== "supported")
+      continue;
+    for (const item of source.inventory) {
+      if (!("resolvedVersion" in item))
+        continue;
+      const candidate = {
+        ecosystem: item.ecosystem,
+        name: item.name,
+        version: item.resolvedVersion
+      };
+      const key = `${candidate.ecosystem}\0${candidate.name}\0${candidate.version}`;
+      if (!packages.has(key))
+        packages.set(key, candidate);
+    }
+  }
+  return [...packages.values()].sort((a, b) => a.ecosystem.localeCompare(b.ecosystem) || a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+}
+async function runSecurity(root, options = {}) {
   const files = await discoverSupportedFiles(root);
   const sources = [];
   for (const file of files) {
@@ -2229,12 +2348,15 @@ async function runSecurity(root) {
       });
     }
   }
-  return { schemaVersion: "1", mode: "offline", sources };
+  if (!options.advisoryAdapter)
+    return { schemaVersion: "1", mode: "offline", sources };
+  const advisories = await options.advisoryAdapter.lookup(advisoryPackages(sources));
+  return { schemaVersion: "1", mode: "advisory", sources, advisories };
 }
 function renderSecurity(report, format) {
   if (format === "json")
     return JSON.stringify(report, null, 2);
-  const lines = ["AunoForge security (offline)"];
+  const lines = [`AunoForge security (${report.mode})`];
   if (report.sources.length === 0)
     lines.push("No supported dependency evidence found.");
   for (const source of report.sources) {
@@ -2248,6 +2370,20 @@ ${source.path} [${source.status}]`);
       const version = "resolvedVersion" in item ? item.resolvedVersion : item.declaredVersion;
       const scope = item.scope ? ` ${item.scope}` : "";
       lines.push(`  ${item.name} ${version} ${item.relationship}${scope}`);
+    }
+  }
+  if (report.advisories) {
+    lines.push("\nAdvisories");
+    for (const result of report.advisories) {
+      if (result.advisories.length === 0) {
+        lines.push(`  ${result.package.name} ${result.package.version}: none`);
+        continue;
+      }
+      for (const advisory of result.advisories) {
+        const severity2 = advisory.severity ? ` ${advisory.severity}` : "";
+        const fixed = advisory.fixedVersions.length ? ` fixed ${advisory.fixedVersions.join(",")}` : "";
+        lines.push(`  ${result.package.name} ${result.package.version}: ${advisory.id}${severity2}${fixed}`);
+      }
     }
   }
   return lines.join("\n");
@@ -2318,8 +2454,8 @@ async function loadIssueFixtureReader(path) {
   const raw = JSON.parse(await readFile7(path, "utf8"));
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw new Error("Issue fixture must be an object");
-  const record2 = raw;
-  return new IssueFixtureReader({ issue: parseIssue(record2.issue), duplicates: parseDuplicates(record2.duplicates) });
+  const record3 = raw;
+  return new IssueFixtureReader({ issue: parseIssue(record3.issue), duplicates: parseDuplicates(record3.duplicates) });
 }
 
 // packages/cli/dist/app.js
@@ -2344,6 +2480,14 @@ function securityFormatValue(args) {
   const value = argValue(args, "--format") ?? "terminal";
   if (value !== "terminal" && value !== "json")
     throw new Error("--format must be terminal or json");
+  return value;
+}
+function securityAdvisoryValue(args) {
+  const value = argValue(args, "--advisory");
+  if (value === void 0)
+    return void 0;
+  if (value !== "osv")
+    throw new Error("--advisory must be osv");
   return value;
 }
 function required(args, name) {
@@ -2398,7 +2542,9 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
   }
   if (command === "security") {
     const format = securityFormatValue(args);
-    console.log(renderSecurity(await runSecurity(root), format).trimEnd());
+    const advisory = securityAdvisoryValue(args);
+    const report = await runSecurity(root, advisory === "osv" ? { advisoryAdapter: new OsvAdvisoryAdapter() } : {});
+    console.log(renderSecurity(report, format).trimEnd());
     return 0;
   }
   if (command === "triage" || command === "reproduce") {
