@@ -12,7 +12,7 @@ import { runDoctor } from "./doctor.js";
 import { triageIssue, renderTriage } from "./triage.js";
 import { reproduceIssue, renderReproduction } from "./reproduce.js";
 import { review, renderReview } from "./review.js";
-import { generateReleaseNotes } from "./release.js";
+import { generateReleaseNotes, renderRelease, type ReleaseFormat } from "./release.js";
 import { listRecipes, resolveRecipePath, testRecipePath, validateRecipePath } from "./recipe-commands.js";
 import { runSecurity, renderSecurity } from "./security.js";
 import { AuditLogger } from "@aunoforge/core";
@@ -22,6 +22,7 @@ export const commands=["init","doctor","triage","reproduce","review","release","
 function argValue(args:string[],name:string):string|undefined{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;}
 function formatValue(args:string[]):"terminal"|"markdown"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json")throw new Error("--format must be terminal, markdown, or json");return value;}
 function reviewFormatValue(args:string[]):"terminal"|"markdown"|"json"|"sarif"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json"&&value!=="sarif")throw new Error("--format must be terminal, markdown, json, or sarif");return value;}
+function releaseFormatValue(args:string[]):ReleaseFormat{const value=argValue(args,"--format")??"markdown";if(value!=="terminal"&&value!=="markdown"&&value!=="json")throw new Error("--format must be terminal, markdown, or json");return value;}
 function securityFormatValue(args:string[]):"terminal"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="json")throw new Error("--format must be terminal or json");return value;}
 function securityAdvisoryValue(args:string[]):"osv"|undefined{const value=argValue(args,"--advisory");if(value===undefined)return undefined;if(value!=="osv")throw new Error("--advisory must be osv");return value;}
 function required(args:string[],name:string):string{const value=argValue(args,name);if(!value)throw new Error(`${name} is required`);return value;}
@@ -76,11 +77,12 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     console.log((incremental?renderReport(report,format,incremental):renderReview(report,format)).trimEnd());return 0;
   }
   if(command==="release"){
+    const format=releaseFormatValue(args);
     const from=argValue(args,"--from");
     const owner=argValue(args,"--owner"), repo=argValue(args,"--repo"), since=argValue(args,"--since");
     const github=owner&&repo&&since?{reader:githubFromEnv(),owner,repo,since}:undefined;
     const result=await generateReleaseNotes({root,...(from?{from}:{}),...(github?{github}:{})});
-    console.log(result.markdown.trimEnd());return 0;
+    console.log(renderRelease(result,format).trimEnd());return 0;
   }
   if(command==="recipes"){
     if(args[0]!=="list")throw new Error("recipes supports only: list");
