@@ -3,36 +3,40 @@ description: Evidence-aware, human-controlled open-source maintenance review.
 author: AunoForge contributors
 inputs:
   command:
-    description: AunoForge command. v0.2 supports review.
+    description: AunoForge command. v0.2 supports review or security.
     required: false
     default: review
   provider:
-    description: "Provider adapter: mock, codex, or claude."
+    description: "Provider adapter: mock, codex, or claude. Used only by review."
     required: false
     default: mock
   model:
-    description: Model name required for live providers.
+    description: Model name required for live review providers.
     required: false
     default: ''
   format:
-    description: "Report format: markdown, json, terminal, or sarif."
+    description: "Report format: markdown, json, terminal, or sarif. Security supports json or terminal."
     required: false
     default: markdown
+  advisory:
+    description: Optional OSV advisory enrichment for command=security. Leave empty for offline inventory.
+    required: false
+    default: ''
   baseline:
     description: Optional path to a prior AunoForge JSON report for incremental comparison.
     required: false
     default: ''
   comment:
-    description: Post the generated report to the pull request.
+    description: Post the generated review report to the pull request.
     required: false
     default: 'false'
   allow-write:
-    description: Explicitly enable the optional PR comment write boundary.
+    description: Explicitly enable the optional PR comment write boundary for review.
     required: false
     default: 'false'
 outputs:
   report-path:
-    description: Absolute path to the generated review report.
+    description: Absolute path to the generated AunoForge report.
 runs:
   using: node24
   main: dist/action/index.mjs
