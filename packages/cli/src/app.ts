@@ -14,13 +14,15 @@ import { reproduceIssue, renderReproduction } from "./reproduce.js";
 import { review, renderReview } from "./review.js";
 import { generateReleaseNotes } from "./release.js";
 import { listRecipes, resolveRecipePath, testRecipePath, validateRecipePath } from "./recipe-commands.js";
+import { runSecurity, renderSecurity } from "./security.js";
 import { AuditLogger } from "@aunoforge/core";
 import { loadIssueFixtureReader } from "./fixture-github.js";
 
-export const commands=["init","doctor","triage","reproduce","review","release","recipes","recipe"] as const;
+export const commands=["init","doctor","triage","reproduce","review","release","security","recipes","recipe"] as const;
 function argValue(args:string[],name:string):string|undefined{const i=args.indexOf(name);return i>=0?args[i+1]:undefined;}
 function formatValue(args:string[]):"terminal"|"markdown"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json")throw new Error("--format must be terminal, markdown, or json");return value;}
 function reviewFormatValue(args:string[]):"terminal"|"markdown"|"json"|"sarif"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="markdown"&&value!=="json"&&value!=="sarif")throw new Error("--format must be terminal, markdown, json, or sarif");return value;}
+function securityFormatValue(args:string[]):"terminal"|"json"{const value=argValue(args,"--format")??"terminal";if(value!=="terminal"&&value!=="json")throw new Error("--format must be terminal or json");return value;}
 function required(args:string[],name:string):string{const value=argValue(args,name);if(!value)throw new Error(`${name} is required`);return value;}
 function providerFromArgs(args:string[]):AunoForgeProvider{
   const id=argValue(args,"--provider")??"mock";
@@ -43,6 +45,11 @@ export async function runCli(argv=process.argv.slice(2)):Promise<number>{
     console.log(result.skippedExisting?`Config already exists: ${result.path}`:dryRun?result.preview:`Created ${result.path}`);return 0;
   }
   if(command==="doctor"){console.log(JSON.stringify(await runDoctor(root),null,2));return 0;}
+  if(command==="security"){
+    const format=securityFormatValue(args);
+    console.log(renderSecurity(await runSecurity(root),format).trimEnd());
+    return 0;
+  }
   if(command==="triage"||command==="reproduce"){
     const issueNumber=Number(args.find(x=>/^\d+$/.test(x))); if(!Number.isInteger(issueNumber)||issueNumber<1)throw new Error(`${command} requires an issue number`);
     const owner=required(args,"--owner"), repo=required(args,"--repo"), provider=providerFromArgs(args), format=formatValue(args);
