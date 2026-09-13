@@ -125,12 +125,13 @@ export class OsvAdvisoryAdapter implements SecurityAdvisoryAdapter {
       })),
     };
     const raw = record(await this.transport({ url: this.endpoint, body }, signal));
-    if (!raw || !Array.isArray(raw.results) || raw.results.length !== ordered.length) {
+    const results = raw?.results;
+    if (!Array.isArray(results) || results.length !== ordered.length) {
       throw new Error("Invalid OSV querybatch response");
     }
 
     return ordered.map((item, index) => {
-      const result = record(raw.results[index]);
+      const result = record(results[index]);
       const advisories = Array.isArray(result?.vulns)
         ? result.vulns.map(parseAdvisory).filter((entry): entry is SecurityAdvisory => entry !== undefined)
         : [];
