@@ -2,7 +2,7 @@
 
 // packages/cli/dist/app.js
 import { resolve as resolve3 } from "node:path";
-import { readFile as readFile7 } from "node:fs/promises";
+import { readFile as readFile8 } from "node:fs/promises";
 
 // packages/core/dist/contracts.js
 var severities = ["critical", "high", "medium", "low", "info"];
@@ -294,6 +294,291 @@ function dedupeFindings(findings) {
     }
   }
   return output;
+}
+
+// packages/core/dist/security-inventory.js
+var scopes = [
+  { key: "dependencies", scope: "runtime" },
+  { key: "optionalDependencies", scope: "optional" },
+  { key: "peerDependencies", scope: "peer" },
+  { key: "devDependencies", scope: "development" }
+];
+function pnpmScope(key) {
+  switch (key) {
+    case "dependencies":
+      return "runtime";
+    case "optionalDependencies":
+      return "optional";
+    case "peerDependencies":
+      return "peer";
+    case "devDependencies":
+      return "development";
+    default:
+      return void 0;
+  }
+}
+function dependencyMap(manifest, key) {
+  const value = manifest[key];
+  if (value === void 0)
+    return {};
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${key} must be an object`);
+  }
+  const result = {};
+  for (const [name, declaredVersion] of Object.entries(value)) {
+    if (typeof declaredVersion !== "string") {
+      throw new Error(`${key}.${name} must be a string`);
+    }
+    result[name] = declaredVersion;
+  }
+  return result;
+}
+function packageNameFromLockPath(packagePath) {
+  const marker = "node_modules/";
+  const markerIndex = packagePath.lastIndexOf(marker);
+  if (markerIndex < 0)
+    return void 0;
+  const tail = packagePath.slice(markerIndex + marker.length);
+  if (!tail)
+    return void 0;
+  if (tail.startsWith("@")) {
+    const parts = tail.split("/");
+    return parts.length === 2 && parts.every(Boolean) ? tail : void 0;
+  }
+  return tail.includes("/") ? void 0 : tail;
+}
+function directScopes(rootPackage) {
+  const result = /* @__PURE__ */ new Map();
+  for (const { key, scope } of scopes) {
+    for (const name of Object.keys(dependencyMap(rootPackage, key))) {
+      if (!result.has(name))
+        result.set(name, scope);
+    }
+  }
+  return result;
+}
+function unquoteYamlScalar(value) {
+  const trimmed = value.trim();
+  if (trimmed.length >= 2 && (trimmed.startsWith("'") && trimmed.endsWith("'") || trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+function pnpmPackageIdentity(packageKey) {
+  const key = unquoteYamlScalar(packageKey).replace(/\([^)]*\)$/, "");
+  const separator = key.lastIndexOf("@");
+  if (separator <= 0 || separator === key.length - 1)
+    return void 0;
+  const name = key.slice(0, separator);
+  const version = key.slice(separator + 1);
+  if (!name || !version || version.startsWith("link:") || version.startsWith("workspace:")) {
+    return void 0;
+  }
+  return { name, version };
+}
+function scopeRank(scope) {
+  switch (scope) {
+    case "runtime":
+      return 0;
+    case "optional":
+      return 1;
+    case "peer":
+      return 2;
+    case "development":
+      return 3;
+    default:
+      return 4;
+  }
+}
+function parsePackageJsonInventory(source, sourcePath = "package.json") {
+  let parsed;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    throw new Error("Invalid package.json JSON");
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("package.json must contain an object");
+  }
+  const manifest = parsed;
+  const maps = scopes.map(({ key, scope }) => ({ key, scope, values: dependencyMap(manifest, key) }));
+  const seen = /* @__PURE__ */ new Set();
+  const inventory = [];
+  for (const { scope, values } of maps) {
+    for (const name of Object.keys(values).sort()) {
+      if (seen.has(name))
+        continue;
+      seen.add(name);
+      inventory.push({
+        ecosystem: "npm",
+        name,
+        declaredVersion: values[name],
+        relationship: "direct",
+        scope,
+        sourcePath
+      });
+    }
+  }
+  return inventory;
+}
+function parsePackageLockInventory(source, sourcePath = "package-lock.json") {
+  let parsed;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    throw new Error("Invalid package-lock.json JSON");
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("package-lock.json must contain an object");
+  }
+  const lockfile = parsed;
+  if (lockfile.lockfileVersion !== 2 && lockfile.lockfileVersion !== 3) {
+    throw new Error("Unsupported package-lock lockfileVersion; expected 2 or 3");
+  }
+  const packagesValue = lockfile.packages;
+  if (packagesValue === null || typeof packagesValue !== "object" || Array.isArray(packagesValue)) {
+    throw new Error("package-lock packages must be an object");
+  }
+  const packages = packagesValue;
+  const rootValue = packages[""];
+  if (rootValue === null || typeof rootValue !== "object" || Array.isArray(rootValue)) {
+    throw new Error("package-lock root package metadata is required");
+  }
+  const rootScopes = directScopes(rootValue);
+  const inventory = [];
+  for (const packagePath of Object.keys(packages).filter(Boolean).sort()) {
+    const packageValue = packages[packagePath];
+    if (packageValue === null || typeof packageValue !== "object" || Array.isArray(packageValue)) {
+      throw new Error(`${packagePath} metadata must be an object`);
+    }
+    const packageEntry = packageValue;
+    const name = packageNameFromLockPath(packagePath);
+    if (!name)
+      continue;
+    if (packageEntry.version === void 0 && packageEntry.link === true)
+      continue;
+    if (typeof packageEntry.version !== "string") {
+      throw new Error(`${packagePath} version must be a string`);
+    }
+    const scope = packagePath === `node_modules/${name}` ? rootScopes.get(name) : void 0;
+    inventory.push({
+      ecosystem: "npm",
+      name,
+      resolvedVersion: packageEntry.version,
+      relationship: scope ? "direct" : "transitive",
+      ...scope ? { scope } : {},
+      sourcePath,
+      packagePath
+    });
+  }
+  return inventory;
+}
+function parsePnpmLockInventory(source, sourcePath = "pnpm-lock.yaml") {
+  const lines = source.replace(/\r\n/g, "\n").split("\n");
+  if (lines.some((line) => line.includes("	"))) {
+    throw new Error("pnpm lockfile tabs are not supported");
+  }
+  const versionLine = lines.find((line) => /^lockfileVersion:\s*/.test(line));
+  const version = versionLine ? unquoteYamlScalar(versionLine.slice(versionLine.indexOf(":") + 1)) : void 0;
+  if (version !== "9.0") {
+    throw new Error("Unsupported pnpm lockfileVersion; expected 9.0");
+  }
+  const importersIndex = lines.findIndex((line) => /^importers:\s*(?:\{\})?\s*$/.test(line));
+  if (importersIndex < 0)
+    throw new Error("pnpm lock importers are required");
+  const packagesIndex = lines.findIndex((line) => /^packages:\s*(?:\{\})?\s*$/.test(line));
+  const direct = [];
+  const importerEnd = packagesIndex > importersIndex ? packagesIndex : lines.length;
+  let importerPath;
+  let scope;
+  let dependencyName;
+  let dependencyVersion;
+  const flushDependency = () => {
+    if (!dependencyName || !scope || !importerPath)
+      return;
+    if (dependencyVersion === void 0) {
+      throw new Error(`${dependencyName} version is required`);
+    }
+    const versionValue = unquoteYamlScalar(dependencyVersion);
+    if (!versionValue.startsWith("link:") && !versionValue.startsWith("workspace:")) {
+      direct.push({
+        ecosystem: "npm",
+        name: dependencyName,
+        resolvedVersion: versionValue.replace(/\([^)]*\)$/, ""),
+        relationship: "direct",
+        scope,
+        sourcePath,
+        importerPath
+      });
+    }
+    dependencyName = void 0;
+    dependencyVersion = void 0;
+  };
+  for (let index = importersIndex + 1; index < importerEnd; index += 1) {
+    const line = lines[index];
+    if (!line.trim() || line.trimStart().startsWith("#"))
+      continue;
+    const importerMatch = line.match(/^  (\S.*):\s*$/);
+    if (importerMatch) {
+      flushDependency();
+      importerPath = unquoteYamlScalar(importerMatch[1]);
+      scope = void 0;
+      continue;
+    }
+    const scopeMatch = line.match(/^    (dependencies|optionalDependencies|peerDependencies|devDependencies):\s*(?:\{\})?\s*$/);
+    if (scopeMatch) {
+      flushDependency();
+      scope = pnpmScope(scopeMatch[1]);
+      continue;
+    }
+    const dependencyMatch = line.match(/^      (\S.*):\s*$/);
+    if (dependencyMatch && scope && importerPath) {
+      flushDependency();
+      dependencyName = unquoteYamlScalar(dependencyMatch[1]);
+      continue;
+    }
+    const versionMatch = line.match(/^        version:\s*(.+)\s*$/);
+    if (versionMatch && dependencyName) {
+      dependencyVersion = versionMatch[1];
+    }
+  }
+  flushDependency();
+  direct.sort((a, b) => scopeRank(a.scope) - scopeRank(b.scope) || a.importerPath.localeCompare(b.importerPath) || a.name.localeCompare(b.name) || a.resolvedVersion.localeCompare(b.resolvedVersion));
+  const dedupedDirect = /* @__PURE__ */ new Map();
+  for (const item of direct) {
+    const identity = `${item.name}\0${item.resolvedVersion}`;
+    if (!dedupedDirect.has(identity))
+      dedupedDirect.set(identity, item);
+  }
+  const transitive = [];
+  if (packagesIndex >= 0) {
+    for (let index = packagesIndex + 1; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (!line.trim() || line.trimStart().startsWith("#"))
+        continue;
+      if (/^[^\s]/.test(line))
+        break;
+      const packageMatch = line.match(/^  (\S.*):\s*(?:\{.*\})?\s*$/);
+      if (!packageMatch)
+        continue;
+      const identity = pnpmPackageIdentity(packageMatch[1]);
+      if (!identity)
+        continue;
+      const key = `${identity.name}\0${identity.version}`;
+      if (dedupedDirect.has(key))
+        continue;
+      transitive.push({
+        ecosystem: "npm",
+        name: identity.name,
+        resolvedVersion: identity.version,
+        relationship: "transitive",
+        sourcePath
+      });
+    }
+  }
+  const result = [...dedupedDirect.values(), ...transitive];
+  result.sort((a, b) => a.name.localeCompare(b.name) || a.resolvedVersion.localeCompare(b.resolvedVersion) || (a.relationship === b.relationship ? 0 : a.relationship === "direct" ? -1 : 1));
+  return result;
 }
 
 // packages/comparison/dist/fingerprint.js
@@ -1873,8 +2158,103 @@ function resolveRecipePath(root, value) {
   return resolve2(root, value);
 }
 
+// packages/cli/dist/security.js
+import { readdir as readdir4, readFile as readFile6 } from "node:fs/promises";
+import { join as join6, relative as relative3 } from "node:path";
+var supportedFiles = /* @__PURE__ */ new Map([
+  ["package.json", "package-json"],
+  ["package-lock.json", "package-lock"],
+  ["pnpm-lock.yaml", "pnpm-lock"]
+]);
+var ignoredDirectories = /* @__PURE__ */ new Set([".git", "node_modules", ".aunoforge"]);
+function normalizePath(path) {
+  return path.split("\\").join("/");
+}
+async function discoverSupportedFiles(root) {
+  const found = [];
+  async function visit(directory) {
+    const entries = await readdir4(directory, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const absolutePath = join6(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (!ignoredDirectories.has(entry.name))
+          await visit(absolutePath);
+        continue;
+      }
+      if (!entry.isFile())
+        continue;
+      const format = supportedFiles.get(entry.name);
+      if (!format)
+        continue;
+      found.push({
+        absolutePath,
+        relativePath: normalizePath(relative3(root, absolutePath)),
+        format
+      });
+    }
+  }
+  await visit(root);
+  found.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+  return found;
+}
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function parseSource(format, source, sourcePath) {
+  if (format === "package-json")
+    return parsePackageJsonInventory(source, sourcePath);
+  if (format === "package-lock")
+    return parsePackageLockInventory(source, sourcePath);
+  return parsePnpmLockInventory(source, sourcePath);
+}
+async function runSecurity(root) {
+  const files = await discoverSupportedFiles(root);
+  const sources = [];
+  for (const file of files) {
+    const source = await readFile6(file.absolutePath, "utf8");
+    try {
+      sources.push({
+        path: file.relativePath,
+        format: file.format,
+        status: "supported",
+        inventory: parseSource(file.format, source, file.relativePath)
+      });
+    } catch (error) {
+      sources.push({
+        path: file.relativePath,
+        format: file.format,
+        status: "unsupported",
+        error: errorMessage(error)
+      });
+    }
+  }
+  return { schemaVersion: "1", mode: "offline", sources };
+}
+function renderSecurity(report, format) {
+  if (format === "json")
+    return JSON.stringify(report, null, 2);
+  const lines = ["AunoForge security (offline)"];
+  if (report.sources.length === 0)
+    lines.push("No supported dependency evidence found.");
+  for (const source of report.sources) {
+    lines.push(`
+${source.path} [${source.status}]`);
+    if (source.status === "unsupported") {
+      lines.push(`  ${source.error}`);
+      continue;
+    }
+    for (const item of source.inventory) {
+      const version = "resolvedVersion" in item ? item.resolvedVersion : item.declaredVersion;
+      const scope = item.scope ? ` ${item.scope}` : "";
+      lines.push(`  ${item.name} ${version} ${item.relationship}${scope}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 // packages/cli/dist/fixture-github.js
-import { readFile as readFile6 } from "node:fs/promises";
+import { readFile as readFile7 } from "node:fs/promises";
 function string(value, label) {
   if (typeof value !== "string")
     throw new Error(`${label} must be a string`);
@@ -1935,7 +2315,7 @@ var IssueFixtureReader = class {
   }
 };
 async function loadIssueFixtureReader(path) {
-  const raw = JSON.parse(await readFile6(path, "utf8"));
+  const raw = JSON.parse(await readFile7(path, "utf8"));
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     throw new Error("Issue fixture must be an object");
   const record2 = raw;
@@ -1943,7 +2323,7 @@ async function loadIssueFixtureReader(path) {
 }
 
 // packages/cli/dist/app.js
-var commands = ["init", "doctor", "triage", "reproduce", "review", "release", "recipes", "recipe"];
+var commands = ["init", "doctor", "triage", "reproduce", "review", "release", "security", "recipes", "recipe"];
 function argValue(args, name) {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : void 0;
@@ -1958,6 +2338,12 @@ function reviewFormatValue(args) {
   const value = argValue(args, "--format") ?? "terminal";
   if (value !== "terminal" && value !== "markdown" && value !== "json" && value !== "sarif")
     throw new Error("--format must be terminal, markdown, json, or sarif");
+  return value;
+}
+function securityFormatValue(args) {
+  const value = argValue(args, "--format") ?? "terminal";
+  if (value !== "terminal" && value !== "json")
+    throw new Error("--format must be terminal or json");
   return value;
 }
 function required(args, name) {
@@ -2010,6 +2396,11 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
     console.log(JSON.stringify(await runDoctor(root), null, 2));
     return 0;
   }
+  if (command === "security") {
+    const format = securityFormatValue(args);
+    console.log(renderSecurity(await runSecurity(root), format).trimEnd());
+    return 0;
+  }
   if (command === "triage" || command === "reproduce") {
     const issueNumber = Number(args.find((x) => /^\d+$/.test(x)));
     if (!Number.isInteger(issueNumber) || issueNumber < 1)
@@ -2026,9 +2417,9 @@ ${commands.map((c) => `  ${c}`).join("\n")}`);
   if (command === "review") {
     const provider = providerFromArgs(args), format = reviewFormatValue(args), prValue = argValue(args, "--pr"), audit = new AuditLogger(resolve3(root, ".aunoforge", "audit.log"));
     const diffPath = argValue(args, "--diff");
-    const suppliedDiff = diffPath ? await readFile7(resolve3(diffPath), "utf8") : void 0;
+    const suppliedDiff = diffPath ? await readFile8(resolve3(diffPath), "utf8") : void 0;
     const baselinePath = argValue(args, "--baseline");
-    const baseline = baselinePath ? validateBaselineReport(JSON.parse(await readFile7(resolve3(baselinePath), "utf8"))) : void 0;
+    const baseline = baselinePath ? validateBaselineReport(JSON.parse(await readFile8(resolve3(baselinePath), "utf8"))) : void 0;
     if (prValue && suppliedDiff !== void 0)
       throw new Error("--pr and --diff cannot be used together");
     const report = prValue ? await review({ root, provider, github: { reader: githubFromEnv(), owner: required(args, "--owner"), repo: required(args, "--repo"), prNumber: Number(prValue) }, runTests: args.includes("--run-tests"), audit }) : await review({ root, provider, base: argValue(args, "--base"), ...suppliedDiff !== void 0 ? { diff: suppliedDiff } : {}, runTests: args.includes("--run-tests"), audit });
