@@ -49,7 +49,7 @@ npx aunoforge init --dry-run
 npx aunoforge init
 ```
 
-Initialization never overwrites an existing `.aunoforge/config.yml`.
+Initialization never overwrites an existing `.aunoforge/config.json`.
 
 ## GitHub Actions result surfaces
 

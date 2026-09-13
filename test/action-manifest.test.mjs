@@ -36,6 +36,15 @@ test('action runs from a checked-in Node 24 runtime without consumer installs or
   assert.doesNotMatch(source, /using:\s+composite/);
 });
 
+test('Action leaves format input empty so project config can participate', async () => {
+  const source = await readFile(actionSourceUrl, 'utf8');
+
+  assert.match(
+    source,
+    /\n  format:\s*\n\s+description:[^\n]+\n\s+required:\s+false\n\s+default:\s+''/m,
+  );
+});
+
 test('Action exposes SARIF without adding a write-capable permission or token input', async () => {
   const source = await readFile(actionSourceUrl, 'utf8');
 

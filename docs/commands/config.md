@@ -46,9 +46,21 @@ Examples:
 
 For non-security-sensitive settings, resolution is deterministic:
 
-`explicit CLI/action input > project config > built-in preset > built-in default`
+`explicit CLI/action input > project config > built-in preset > surface default > terminal fallback`
 
-For example, a project may set `"format": "json"`, while an explicit CLI `--format markdown` still wins for commands that support those formats.
+Surface defaults preserve established behavior when neither an explicit runtime format, project setting, nor preset supplies one:
+
+- CLI review defaults to `terminal`.
+- CLI release defaults to `markdown`.
+- CLI security defaults to `terminal`.
+- Action review defaults to `markdown`.
+- Action security defaults to `terminal`.
+
+For example, a project may set `"format": "json"`, while an explicit CLI `--format markdown` or explicit Action `format: markdown` still wins for surfaces that support Markdown. Leaving the Action `format` input empty allows project config and presets to participate before the Action surface default is applied.
+
+Explicit review `SARIF` is a runtime-only override and remains higher priority than project configuration. Project configuration intentionally does not add `sarif` to the schema.
+
+A resolved security `markdown` format is unsupported and fails clearly because security reports support only `terminal` and `json`. For security, an explicit `terminal` or `json` runtime format overrides an incompatible project-configured Markdown value.
 
 ## Security boundary
 
