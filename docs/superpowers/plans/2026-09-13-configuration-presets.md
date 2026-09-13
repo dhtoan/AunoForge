@@ -37,11 +37,11 @@
 - Produces `BuiltinPresetId`, `AunoForgeProjectConfig`, `ResolvedAunoForgeConfig`, `loadProjectConfig(root)`, `validateProjectConfig(value)`, and `resolveProjectConfig(config, overrides?)`.
 - Presets are static deterministic objects and contain no credentials or write-enabling fields.
 
-- [ ] **Step 1: Write failing tests** for required `schemaVersion: 1`, all seven built-in preset IDs, built-in-only `extends`, deterministic resolution, unknown-field rejection, and rejection of config keys that attempt to enable writes or inject credentials.
-- [ ] **Step 2: Prove RED** with `pnpm test`.
-- [ ] **Step 3: Implement the minimal parser/resolver** with explicit allowlists and safe defaults.
-- [ ] **Step 4: Verify** with `pnpm test` and `pnpm typecheck`.
-- [ ] **Step 5: Commit** as `feat: add versioned configuration presets`.
+- [x] **Step 1: Write failing tests** for required `schemaVersion: 1`, all seven built-in preset IDs, built-in-only `extends`, deterministic resolution, unknown-field rejection, and rejection of config keys that attempt to enable writes or inject credentials.
+- [x] **Step 2: Prove RED** with `pnpm test`.
+- [x] **Step 3: Implement the minimal parser/resolver** with explicit allowlists and safe defaults.
+- [x] **Step 4: Verify** with `pnpm test` and `pnpm typecheck`.
+- [x] **Step 5: Commit** as `feat: add versioned configuration presets`.
 
 ---
 
@@ -56,11 +56,11 @@
 - Consumes `loadProjectConfig`/validation from Task 1.
 - Produces `aunoforge config validate --root <repo>` with deterministic JSON/terminal-safe validation output and non-zero status for invalid config.
 
-- [ ] **Step 1: Write failing CLI tests** covering valid config, missing/invalid schema version, unknown fields, invalid preset, and forbidden write/credential settings.
-- [ ] **Step 2: Prove RED** with `pnpm test`.
-- [ ] **Step 3: Implement minimal command routing** without changing unrelated command semantics.
-- [ ] **Step 4: Verify** lint/typecheck/tests/build.
-- [ ] **Step 5: Commit** as `feat: add config validation command`.
+- [x] **Step 1: Write failing CLI tests** covering valid config, missing/invalid schema version, unknown fields, invalid preset, and forbidden write/credential settings.
+- [x] **Step 2: Prove RED** with `pnpm test`.
+- [x] **Step 3: Implement minimal command routing** without changing unrelated command semantics.
+- [x] **Step 4: Verify** lint/typecheck/tests/build.
+- [x] **Step 5: Commit** as `feat: add config validation command`.
 
 ---
 
@@ -76,11 +76,13 @@
 - Explicit invocation flags remain highest precedence.
 - `allow-write`, tokens, API keys, and credentials are excluded from resolution entirely.
 
-- [ ] **Step 1: Add RED precedence tests** proving CLI > config > preset > default and proving config cannot authorize writes.
-- [ ] **Step 2: Prove RED**.
-- [ ] **Step 3: Implement only the minimal shared resolution needed by existing commands**; do not broaden scope into unrelated refactors.
-- [ ] **Step 4: Verify** all applicable tests and generated runtime drift.
-- [ ] **Step 5: Commit** as `feat: apply safe configuration precedence`.
+- [x] **Step 1: Add RED precedence tests** proving CLI > config > preset > default and proving config cannot authorize writes.
+- [x] **Step 2: Prove RED**.
+- [x] **Step 3: Implement only the minimal shared resolution needed by existing commands**; do not broaden scope into unrelated refactors.
+- [x] **Step 4: Verify** all applicable tests and generated runtime drift.
+- [x] **Step 5: Commit** as `feat: apply safe configuration precedence`.
+
+Task 3 also migrates `init` from the legacy `.aunoforge/config.yml` shape to the versioned `.aunoforge/config.json` contract so newly initialized projects are immediately valid and contain no inherited write/merge/publish authorization fields.
 
 ---
 
@@ -94,8 +96,8 @@
 **Interfaces:**
 - Documents config path, schema version, seven presets, inheritance boundary, precedence, and the explicit write-permission exclusion.
 
-- [ ] **Step 1: Write docs-as-code RED tests**.
-- [ ] **Step 2: Prove RED**.
-- [ ] **Step 3: Add maintained examples** for `recommended`, `security`, `wordpress`, and `config validate`.
+- [x] **Step 1: Write docs-as-code RED tests**.
+- [x] **Step 2: Prove RED**.
+- [x] **Step 3: Add maintained examples** for `recommended`, `security`, `wordpress`, and `config validate`.
 - [ ] **Step 4: Run full verification**: lint, typecheck, tests, build, build:action drift, recipes, Node 20/22/24, macOS, Windows, AunoForge Review.
 - [ ] **Step 5: Update the primary PR with exact RED/GREEN and exact-head CI evidence, then leave it for human merge only.**
