@@ -49,7 +49,7 @@ function readJsonBody(request) {
   });
 }
 
-async function createGitHubServer({ existingMarkedComment = true } = {}) {
+async function createGitHubServer({ existingMarkedComment = true, commentListStatus = 200 } = {}) {
   const requests = [];
   const comments = [
     { id: 41, body: 'Human-maintained note', user: { login: 'maintainer' } },
@@ -92,9 +92,9 @@ async function createGitHubServer({ existingMarkedComment = true } = {}) {
     }
 
     if (request.method === 'GET' && url === '/repos/owner/repo/issues/7/comments?per_page=100') {
-      response.statusCode = 200;
+      response.statusCode = commentListStatus;
       response.setHeader('content-type', 'application/json');
-      response.end(JSON.stringify(comments));
+      response.end(commentListStatus === 200 ? JSON.stringify(comments) : JSON.stringify({ message: 'forbidden' }));
       return;
     }
 
@@ -131,12 +131,17 @@ async function createGitHubServer({ existingMarkedComment = true } = {}) {
   };
 }
 
-async function runCommentAction(server) {
+async function runAction(server, {
+  comment = 'true',
+  allowWrite = 'true',
+  token = 'test-token',
+  event = { pull_request: { number: 7 } },
+} = {}) {
   const root = await mkdtemp(join(tmpdir(), 'aunoforge-sticky-comment-'));
   try {
     await initializeGitFixture(root);
     const eventPath = join(root, 'event.json');
-    await writeFile(eventPath, JSON.stringify({ pull_request: { number: 7 } }));
+    await writeFile(eventPath, JSON.stringify(event));
     const runtime = fileURLToPath(new URL('../dist/action/index.mjs', import.meta.url));
     return await runProcess(process.execPath, [runtime], {
       cwd: root,
@@ -147,15 +152,15 @@ async function runCommentAction(server) {
         GITHUB_EVENT_PATH: eventPath,
         GITHUB_REPOSITORY: 'owner/repo',
         GITHUB_API_URL: server.apiBase,
-        GITHUB_TOKEN: 'test-token',
+        GITHUB_TOKEN: token,
         GITHUB_STEP_SUMMARY: '',
         GITHUB_OUTPUT: '',
         INPUT_COMMAND: 'review',
         INPUT_PROVIDER: 'mock',
         INPUT_MODEL: '',
         INPUT_FORMAT: 'markdown',
-        INPUT_COMMENT: 'true',
-        INPUT_ALLOW_WRITE: 'true',
+        INPUT_COMMENT: comment,
+        INPUT_ALLOW_WRITE: allowWrite,
         OPENAI_API_KEY: '',
         ANTHROPIC_API_KEY: '',
       },
@@ -168,7 +173,7 @@ async function runCommentAction(server) {
 test('comment mode updates only the existing AunoForge-owned marked comment', async () => {
   const server = await createGitHubServer({ existingMarkedComment: true });
   try {
-    const result = await runCommentAction(server);
+    const result = await runAction(server);
     assert.equal(result.code, 0, result.stderr);
     const commentReads = server.requests.filter((request) => request.method === 'GET' && request.url.includes('/issues/7/comments'));
     const updates = server.requests.filter((request) => request.method === 'PATCH');
@@ -187,13 +192,67 @@ test('comment mode updates only the existing AunoForge-owned marked comment', as
 test('comment mode creates one marked AunoForge comment when none exists', async () => {
   const server = await createGitHubServer({ existingMarkedComment: false });
   try {
-    const result = await runCommentAction(server);
+    const result = await runAction(server);
     assert.equal(result.code, 0, result.stderr);
     const updates = server.requests.filter((request) => request.method === 'PATCH');
     const creates = server.requests.filter((request) => request.method === 'POST' && request.url.endsWith('/issues/7/comments'));
     assert.equal(updates.length, 0);
     assert.equal(creates.length, 1);
     assert.match(creates[0].body.body, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  } finally {
+    await server.close();
+  }
+});
+
+test('comment mode refuses to write unless allow-write is explicitly enabled', async () => {
+  const server = await createGitHubServer();
+  try {
+    const result = await runAction(server, { allowWrite: 'false' });
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /comment=true requires allow-write=true/);
+    assert.equal(server.requests.length, 0);
+  } finally {
+    await server.close();
+  }
+});
+
+test('comment mode requires a token before reading or writing PR comments', async () => {
+  const server = await createGitHubServer();
+  try {
+    const result = await runAction(server, { token: '' });
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /PR comment mode requires GITHUB_TOKEN/);
+    assert.equal(server.requests.some((request) => request.url.includes('/issues/7/comments')), false);
+    assert.equal(server.requests.some((request) => request.method === 'POST' || request.method === 'PATCH'), false);
+  } finally {
+    await server.close();
+  }
+});
+
+test('insufficient GitHub comment permission fails clearly without attempting a create or update', async () => {
+  const server = await createGitHubServer({ commentListStatus: 403 });
+  try {
+    const result = await runAction(server);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /GitHub comment list API returned 403/);
+    assert.equal(server.requests.some((request) => request.method === 'POST' || request.method === 'PATCH'), false);
+  } finally {
+    await server.close();
+  }
+});
+
+test('fork PR review remains read-only when comment mode is disabled', async () => {
+  const server = await createGitHubServer();
+  try {
+    const result = await runAction(server, {
+      comment: 'false',
+      allowWrite: 'false',
+      token: '',
+      event: { pull_request: { number: 7, head: { repo: { fork: true } } } },
+    });
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(server.requests.some((request) => request.url.includes('/issues/7/comments')), false);
+    assert.equal(server.requests.every((request) => request.method === 'GET'), true);
   } finally {
     await server.close();
   }
