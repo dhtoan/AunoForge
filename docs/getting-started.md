@@ -59,6 +59,29 @@ For pull requests, AunoForge can emit GitHub workflow annotations for evidence-v
 
 Use `--format sarif` in the CLI or `format: sarif` in the Action to produce a SARIF 2.1.0 report. SARIF is a portable report surface only: AunoForge does not automatically upload SARIF to GitHub code scanning, and enabling SARIF does not grant additional repository permissions.
 
+### Opt-in sticky PR comments
+
+Sticky PR comments are disabled by default. The normal AunoForge Action path stays read-only and never needs `pull-requests: write`. Enable comments only in a workflow where you deliberately want AunoForge to write one review summary back to the pull request.
+
+Grant the job the minimum write permission and enable both explicit runtime gates on the AunoForge step:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+
+# on the AunoForge Action step
+with:
+  comment: 'true'
+  allow-write: 'true'
+```
+
+Both `comment: 'true'` and `allow-write: 'true'` are required. Comment mode also requires `GITHUB_TOKEN`; a missing token or insufficient GitHub comment permission fails clearly instead of silently falling back to another write path.
+
+AunoForge owns its sticky review comment with the hidden marker `<!-- aunoforge:review-comment -->`. On the first run it creates one marked comment. On later runs it updates that marked comment in place instead of posting a new comment. Unmarked human comments are never selected for update.
+
+Fork pull requests keep the read-only default when comment mode is disabled. Do not grant write permissions to untrusted fork workflows merely to enable comments; keep review and annotations read-only unless a maintainer has deliberately chosen the write-capable workflow context.
+
 The full report remains available through the Action's `report-path` output. Artifact upload is optional and stays at the workflow layer with GitHub's maintained `actions/upload-artifact@v4`; it does not require enabling AunoForge PR comments. See the explicitly labeled current-main / v0.2 example at [`examples/aunoforge-review-v0.2.yml`](examples/aunoforge-review-v0.2.yml).
 
 ## Next
