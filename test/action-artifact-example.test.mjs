@@ -11,7 +11,7 @@ test('v0.2 workflow example keeps artifact upload optional and independent from 
   const source = await readFile(exampleUrl, 'utf8');
   assert.match(source, /id:\s+aunoforge/);
   assert.match(source, /comment:\s*['"]false['"]/);
-  assert.match(source, /actions\/upload-artifact@v4/);
+  assert.match(source, /actions\/upload-artifact@v7/);
   assert.match(source, /name:\s+aunoforge-report/);
   assert.match(source, /steps\.aunoforge\.outputs\.report-path/);
   assert.match(source, /optional/i);
@@ -22,7 +22,7 @@ test('v0.2 workflow example keeps artifact upload optional and independent from 
 test('repository smoke workflow exercises SARIF with read-only permissions and one stable artifact', async () => {
   const source = await readFile(workflowUrl, 'utf8');
   assert.match(source, /comment:\s*['"]false['"]/);
-  assert.match(source, /actions\/upload-artifact@v4/);
+  assert.match(source, /actions\/upload-artifact@v7/);
   assert.match(source, /name:\s+aunoforge-report/);
   assert.match(source, /id:\s+aunoforge-sarif/);
   assert.match(source, /format:\s+sarif/);

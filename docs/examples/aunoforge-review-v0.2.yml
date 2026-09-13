@@ -15,7 +15,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Optional: restore or download a prior AunoForge JSON report into this path.
       # Artifact retention/download orchestration stays outside AunoForge core.
@@ -30,7 +30,7 @@ jobs:
 
       # Optional: persist the generated SARIF report. Step Summary and workflow annotations work without this.
       - name: Upload AunoForge report (optional)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aunoforge-report
           path: ${{ steps.aunoforge.outputs.report-path }}
