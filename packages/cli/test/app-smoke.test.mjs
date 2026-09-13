@@ -81,13 +81,16 @@ test('security inherits supported project config and explicit supported format o
   const configured=await capture(['security','--root',root]);
   assert.equal(configured.code,0);
   const configuredReport=JSON.parse(configured.output);
-  assert.equal(Array.isArray(configuredReport.packages),true);
+  assert.equal(Array.isArray(configuredReport.sources),true);
+  assert.equal(configuredReport.sources.some((source)=>Array.isArray(source.inventory)),true);
 
   await writeConfig(root,{schemaVersion:1,format:'markdown'});
   await assert.rejects(()=>capture(['security','--root',root]),/security.*terminal or json|terminal or json/i);
   const explicit=await capture(['security','--root',root,'--format','json']);
   assert.equal(explicit.code,0);
-  assert.equal(Array.isArray(JSON.parse(explicit.output).packages),true);
+  const explicitReport=JSON.parse(explicit.output);
+  assert.equal(Array.isArray(explicitReport.sources),true);
+  assert.equal(explicitReport.sources.some((source)=>Array.isArray(source.inventory)),true);
 });
 
 test('release rejects unsupported formats clearly', async()=>{const root=await releaseRepo();await assert.rejects(()=>capture(['release','--root',root,'--from','v0.1.0','--format','sarif']),/--format must be terminal, markdown, or json/);});
