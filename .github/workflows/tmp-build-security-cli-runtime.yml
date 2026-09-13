@@ -1,0 +1,27 @@
+name: Temporary Security CLI Runtime
+
+on:
+  push:
+    branches:
+      - tmp/security-cli-runtime
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.15.1 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:action
+      - uses: actions/upload-artifact@v4
+        with:
+          name: security-cli-runtime
+          path: dist/action/cli.mjs
+          if-no-files-found: error
