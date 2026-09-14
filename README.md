@@ -2,7 +2,7 @@
 
 # ⚒️ AunoForge
 
-### AI-assisted open-source maintenance you can verify.
+### AI-assisted maintenance you can verify.
 
 **Review code. Triage issues. Reproduce bugs. Inspect security evidence. Prepare releases.**  
 Keep repository authority with maintainers — not with the model.
@@ -25,27 +25,6 @@ Keep repository authority with maintainers — not with the model.
 [Get Started](#-60-second-proof) · [Capabilities](#-what-aunoforge-does) · [Security](#-security-by-default) · [Docs](docs/) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
-
----
-
-## Why AunoForge exists
-
-AI can produce a convincing code review in seconds. The hard part is deciding whether that review is **grounded in the repository, safe to act on, reproducible, and compatible with maintainer policy**.
-
-AunoForge is a verification layer for AI-assisted maintenance. It combines deterministic checks, structured model output, repository evidence, explicit policy boundaries, and human approval into one workflow.
-
-| Typical AI workflow | AunoForge workflow |
-|---|---|
-| Model prose is treated as the result | Findings are structured and checked against repository evidence |
-| Provider behavior leaks into the whole tool | Providers sit behind one contract |
-| Write access can become implicit | Read-only is the default; writes require explicit authorization |
-| Reviews are difficult to compare over time | JSON reports and incremental baselines make changes inspectable |
-| Release notes can become generated guesswork | Release intelligence is derived from Git and optional GitHub evidence |
-| Security scans often hide network behavior | Dependency inventory is offline by default; advisory enrichment is explicit |
-
-AunoForge treats repository content, issue text, pull-request descriptions, comments, recipes, and model output as **untrusted input**.
-
-It does not let a model grant itself permissions, silently mutate your repository, merge a pull request, publish a package, or turn hallucinated file references into trusted findings.
 
 ---
 
@@ -81,7 +60,7 @@ jobs:
 
 No API key is required. A maintained smoke workflow runs the stable `v0.1.0` release, and the full copy-paste example lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).
 
-### Verified stable output
+### Verified v0.1.0 output
 
 ```text
 # AunoForge Review
@@ -94,6 +73,27 @@ No findings.
 ```
 
 > **Stable vs. current main:** `v0.1.0` is the published stable Action. Current `main` contains upcoming v0.2 work including SARIF output, incremental baselines, Step Summary integration, the prebuilt Node 24 Action runtime, configuration presets, security intelligence, and release intelligence. Use the explicitly labeled [v0.2/current-main example](docs/examples/aunoforge-review-v0.2.yml) when evaluating unreleased capabilities.
+
+---
+
+## Why AunoForge?
+
+AI can produce a convincing code review in seconds. The hard part is deciding whether that review is **grounded in the repository, safe to act on, reproducible, and compatible with maintainer policy**.
+
+AunoForge is a verification layer for AI-assisted maintenance. It combines deterministic checks, structured model output, repository evidence, explicit policy boundaries, and human approval into one workflow.
+
+| Typical AI workflow | AunoForge workflow |
+|---|---|
+| Model prose is treated as the result | Findings are structured and checked against repository evidence |
+| Provider behavior leaks into the whole tool | Providers sit behind one contract |
+| Write access can become implicit | Read-only is the default; writes require explicit authorization |
+| Reviews are difficult to compare over time | JSON reports and incremental baselines make changes inspectable |
+| Release notes can become generated guesswork | Release intelligence is derived from Git and optional GitHub evidence |
+| Security scans often hide network behavior | Dependency inventory is offline by default; advisory enrichment is explicit |
+
+AunoForge treats repository content, issue text, pull-request descriptions, comments, recipes, and model output as **untrusted input**.
+
+It does not let a model grant itself permissions, silently mutate your repository, merge a pull request, publish a package, or turn hallucinated file references into trusted findings.
 
 ---
 
@@ -424,7 +424,7 @@ Use the stable tag when you want the published release contract:
 
 ### Current main / upcoming v0.2
 
-Use `@main` only when intentionally testing unreleased capabilities. The maintained example demonstrates SARIF output, explicit baseline input, Step Summary/annotation behavior, and optional artifact persistence:
+Use the current-main example only when intentionally testing unreleased capabilities. The maintained example demonstrates SARIF output, explicit baseline input, Step Summary/annotation behavior, and optional artifact persistence:
 
 [View the current-main v0.2 example →](docs/examples/aunoforge-review-v0.2.yml)
 
