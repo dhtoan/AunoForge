@@ -7,11 +7,13 @@ const workflowUrl = new URL('../.github/workflows/aunoforge-review.yml', import.
 const gettingStartedUrl = new URL('../docs/getting-started.md', import.meta.url);
 const reviewCommandUrl = new URL('../docs/commands/review.md', import.meta.url);
 
+const uploadArtifactPin = '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
+
 test('v0.2 workflow example keeps artifact upload optional and independent from PR comments', async () => {
   const source = await readFile(exampleUrl, 'utf8');
   assert.match(source, /id:\s+aunoforge/);
   assert.match(source, /comment:\s*['"]false['"]/);
-  assert.match(source, /actions\/upload-artifact@v7/);
+  assert.match(source, new RegExp(`actions\\/upload-artifact@${uploadArtifactPin}`));
   assert.match(source, /name:\s+aunoforge-report/);
   assert.match(source, /steps\.aunoforge\.outputs\.report-path/);
   assert.match(source, /optional/i);
@@ -22,7 +24,7 @@ test('v0.2 workflow example keeps artifact upload optional and independent from 
 test('repository smoke workflow exercises SARIF with read-only permissions and one stable artifact', async () => {
   const source = await readFile(workflowUrl, 'utf8');
   assert.match(source, /comment:\s*['"]false['"]/);
-  assert.match(source, /actions\/upload-artifact@v7/);
+  assert.match(source, new RegExp(`actions\\/upload-artifact@${uploadArtifactPin}`));
   assert.match(source, /name:\s+aunoforge-report/);
   assert.match(source, /id:\s+aunoforge-sarif/);
   assert.match(source, /format:\s+sarif/);
