@@ -2,36 +2,58 @@
 
 # ⚒️ AunoForge
 
-### AI-assisted maintenance you can verify.
+### AI-assisted open-source maintenance you can verify.
 
-**Triage issues. Reproduce bugs. Review changes. Check regressions. Prepare releases.**  
-Without handing repository control to an AI model.
+**Review code. Triage issues. Reproduce bugs. Inspect security evidence. Prepare releases.**  
+Keep repository authority with maintainers — not with the model.
 
 [![CI](https://github.com/dhtoan/AunoForge/actions/workflows/ci.yml/badge.svg)](https://github.com/dhtoan/AunoForge/actions/workflows/ci.yml)
 [![AunoForge Review](https://github.com/dhtoan/AunoForge/actions/workflows/aunoforge-review.yml/badge.svg)](https://github.com/dhtoan/AunoForge/actions/workflows/aunoforge-review.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/dhtoan/AunoForge/blob/main/CONTRIBUTING.md)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/dhtoan)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![GitHub Stars](https://img.shields.io/github/stars/dhtoan/AunoForge.svg?style=social&label=Star)](https://github.com/dhtoan/AunoForge/stargazers)
 
 [![Codex Provider](https://img.shields.io/badge/provider-Codex%20%2F%20OpenAI-111111)](docs/concepts/providers.md)
 [![Claude Provider](https://img.shields.io/badge/provider-Claude%20%2F%20Anthropic-D97757)](docs/concepts/providers.md)
 [![Security by Default](https://img.shields.io/badge/security-read--only%20by%20default-6f42c1)](docs/concepts/security.md)
 
-**Provider-neutral · Evidence-aware · Human-controlled**
+**Provider-neutral · Evidence-aware · Read-only by default · Human-controlled**
 
 > **AI proposes. AunoForge verifies. Maintainers decide.**
 
-[Getting Started](docs/getting-started.md) · [Documentation](docs/) · [Security](SECURITY.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+[Get Started](#-60-second-proof) · [Capabilities](#-what-aunoforge-does) · [Security](#-security-by-default) · [Docs](docs/) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
 ---
 
+## Why AunoForge exists
+
+AI can produce a convincing code review in seconds. The hard part is deciding whether that review is **grounded in the repository, safe to act on, reproducible, and compatible with maintainer policy**.
+
+AunoForge is a verification layer for AI-assisted maintenance. It combines deterministic checks, structured model output, repository evidence, explicit policy boundaries, and human approval into one workflow.
+
+| Typical AI workflow | AunoForge workflow |
+|---|---|
+| Model prose is treated as the result | Findings are structured and checked against repository evidence |
+| Provider behavior leaks into the whole tool | Providers sit behind one contract |
+| Write access can become implicit | Read-only is the default; writes require explicit authorization |
+| Reviews are difficult to compare over time | JSON reports and incremental baselines make changes inspectable |
+| Release notes can become generated guesswork | Release intelligence is derived from Git and optional GitHub evidence |
+| Security scans often hide network behavior | Dependency inventory is offline by default; advisory enrichment is explicit |
+
+AunoForge treats repository content, issue text, pull-request descriptions, comments, recipes, and model output as **untrusted input**.
+
+It does not let a model grant itself permissions, silently mutate your repository, merge a pull request, publish a package, or turn hallucinated file references into trusted findings.
+
+---
+
 ## ⚡ 60-second proof
 
-Want the shortest proof path? Copy this workflow into `.github/workflows/aunoforge.yml`. It uses the released **v0.1.0** Action, the zero-key `mock` provider, read-only permissions, and no PR comments. GitHub runner startup time varies.
+The fastest safe proof is the published **v0.1.0** GitHub Action with the zero-key `mock` provider. It runs with read-only permissions and does not post PR comments.
+
+Create `.github/workflows/aunoforge.yml`:
 
 ```yaml
 name: AunoForge Proof
@@ -48,7 +70,8 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - uses: dhtoan/AunoForge@v0.1.0
         with:
           provider: mock
@@ -56,11 +79,9 @@ jobs:
           comment: 'false'
 ```
 
-No API key is required. The stable Action generates a Markdown review report without enabling repository writes. A maintained CI smoke workflow runs this exact release tag, and the full copy-paste file lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).
+No API key is required. A maintained smoke workflow runs the stable `v0.1.0` release, and the full copy-paste example lives at [docs/examples/aunoforge-review.yml](docs/examples/aunoforge-review.yml).
 
-### Verified v0.1.0 output
-
-The maintained [stable smoke workflow](.github/workflows/stable-action-smoke.yml) ran `dhtoan/AunoForge@v0.1.0` with `provider: mock` and produced this report:
+### Verified stable output
 
 ```text
 # AunoForge Review
@@ -72,15 +93,26 @@ Critical: 0 · High: 0 · Medium: 0 · Low: 0 · Info: 0
 No findings.
 ```
 
-> **Stable vs. current main:** `v0.1.0` is the published stable Action. SARIF, incremental baselines, Step Summary, and the prebuilt Node 24 runtime are current-main / upcoming v0.2 capabilities and are intentionally documented separately in [the v0.2 example](docs/examples/aunoforge-review-v0.2.yml).
+> **Stable vs. current main:** `v0.1.0` is the published stable Action. Current `main` contains upcoming v0.2 work including SARIF output, incremental baselines, Step Summary integration, the prebuilt Node 24 Action runtime, configuration presets, security intelligence, and release intelligence. Use the explicitly labeled [v0.2/current-main example](docs/examples/aunoforge-review-v0.2.yml) when evaluating unreleased capabilities.
 
 ---
 
-## Why AunoForge?
+## ✨ What AunoForge does
 
-AI can generate a code review in seconds. The harder problem is deciding whether the review is **grounded in the repository, safe to act on, and reproducible by another maintainer**.
+| Capability | Surface | Purpose | Default posture |
+|---|---|---|---|
+| 🩺 **Repository doctor** | `aunoforge doctor` | Scores repository maintenance health with deterministic checks | Read-only |
+| 🏷️ **Issue triage** | `aunoforge triage` | Suggests issue type, severity, area, labels, and next actions | No issue mutation |
+| 🧪 **Bug reproduction** | `aunoforge reproduce` | Converts issue evidence into a structured reproduction plan | Read-only |
+| 🔍 **Evidence-aware review** | `aunoforge review` | Runs six review passes, deterministic checks, and evidence validation | Read-only |
+| 🛡️ **Security intelligence** | `aunoforge security` | Inventories supported Node dependency evidence; optional OSV enrichment | Offline by default |
+| 📦 **Release intelligence** | `aunoforge release` | Derives categorized release evidence and semantic-version guidance | No publishing |
+| ⚙️ **Project configuration** | `.aunoforge/config.json` | Applies versioned presets and deterministic precedence | Cannot grant write permission |
+| 🧩 **Recipes** | `recipes list`, `recipe validate`, `recipe test` | Extends maintenance workflows declaratively | No arbitrary recipe execution |
+| 🤖 **Provider adapters** | `mock`, `codex`, `claude` | Keeps provider APIs behind one contract | Explicit provider selection |
+| 🔁 **GitHub Action** | `uses: dhtoan/AunoForge@v0.1.0` | Runs the stable review workflow in CI | Comments disabled by default |
 
-AunoForge adds a maintainer-focused verification layer around AI-assisted workflows:
+### A maintainer-controlled data path
 
 ```text
 Repository / Issue / Pull Request
@@ -88,29 +120,30 @@ Repository / Issue / Pull Request
               ▼
         AunoForge Core
               │
-      ┌───────┼────────┐
-      │       │        │
- Deterministic  Recipes  Provider
-    checks               adapter
-      │       │        │
-      └───────┼────────┘
+      ┌───────┼───────────┐
+      │       │           │
+Deterministic Recipes   Provider
+  checks      engine     adapter
+      │       │           │
+      └───────┼───────────┘
               ▼
-     Evidence validation
+      Evidence validation
               │
               ▼
-       Maintainer report
+       Policy boundary
+              │
+              ▼
+ Terminal / Markdown / JSON / SARIF*
               │
               ▼
         Human decision
+
+* SARIF is current-main / upcoming v0.2.
 ```
-
-AunoForge treats repository content, issue text, pull-request descriptions, community recipes, comments, and model output as **untrusted input**.
-
-It does not let a model grant itself permissions, silently mutate your repository, merge a PR, publish a package, or turn hallucinated file references into trusted findings.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 CLI quick start
 
 ### Requirements
 
@@ -124,10 +157,9 @@ npx aunoforge doctor
 npx aunoforge review --provider mock --format markdown
 ```
 
-The `mock` provider makes **no external model request**. Deterministic checks still run, so it is the safest way to understand the workflow.
+The `mock` provider makes **no external model request**. Deterministic checks still run, so it is the safest first look at AunoForge behavior.
 
-> **Package publication note**  
-> Until the first npm publication, clone the repository and run the built CLI directly:
+Until the first npm publication, clone the repository and run the built CLI directly:
 
 ```bash
 git clone https://github.com/dhtoan/AunoForge.git
@@ -142,30 +174,15 @@ node packages/cli/dist/bin.js doctor --root .
 node packages/cli/dist/bin.js review --root . --provider mock --format markdown
 ```
 
-See the full [Getting Started guide](docs/getting-started.md).
+See [Getting Started](docs/getting-started.md) for the full setup path.
 
 ---
 
-## ✨ What You Get
+## 🔍 Evidence-aware review
 
-| Capability | Command | What it does | Default behavior |
-|---|---|---|---|
-| 🩺 **Repository doctor** | `aunoforge doctor` | Scores maintenance health using deterministic checks | Read-only |
-| 🏷️ **Issue triage** | `aunoforge triage` | Classifies issues and suggests severity, area, labels, and next actions | No issue mutation |
-| 🧪 **Bug reproduction** | `aunoforge reproduce` | Converts an issue into a structured reproduction plan | Read-only |
-| 🔍 **PR / diff review** | `aunoforge review` | Runs multi-pass review plus evidence validation | Read-only |
-| 📦 **Release preparation** | `aunoforge release` | Drafts release notes from Git history and optional PR metadata | No publishing |
-| 🧩 **Recipes** | `recipes list`, `recipe validate`, `recipe test` | Extends workflows without changing core | No arbitrary execution |
-| 🤖 **Provider adapters** | `mock`, `codex`, `claude` | Keeps model-specific APIs behind one contract | Explicit provider selection |
-| ⚙️ **GitHub Action** | `uses: dhtoan/AunoForge@v0.1.0` | Runs the published stable AunoForge review in CI | `comment: false` |
+`aunoforge review` runs exactly six model review passes — correctness, regression, security, compatibility, test coverage, and breaking changes — plus deterministic checks.
 
----
-
-## 🔍 Evidence-Aware Review
-
-AunoForge does not treat model prose as a trusted result.
-
-A review flows through structured validation:
+A generated finding is not automatically trusted:
 
 ```text
 Model / deterministic finding
@@ -187,64 +204,9 @@ Model / deterministic finding
                 reject location
 ```
 
-A finding can include:
+A finding can carry severity, category, file and line range, source, evidence, explanation, verification steps, and confidence.
 
-```text
-severity
-category
-file + line range
-source: deterministic | model | hybrid
-evidence
-explanation
-verification steps
-confidence
-```
-
-This makes AI-assisted reviews easier to inspect, compare, test, and challenge.
-
----
-
-## 🛠️ Core Workflows
-
-### 1. Inspect repository health
-
-```bash
-npx aunoforge doctor --root .
-```
-
-Typical checks include project metadata, maintenance files, CI presence, tests, security documentation, and contributor readiness.
-
-### 2. Triage a GitHub issue
-
-```bash
-npx aunoforge triage 183 \
-  --provider codex \
-  --model <model-name>
-```
-
-AunoForge can suggest:
-
-- issue type
-- affected area
-- severity
-- candidate labels
-- missing reproduction information
-- recommended next action
-
-It does **not** apply labels by default.
-
-### 3. Turn a bug report into a reproduction plan
-
-```bash
-npx aunoforge reproduce 183 \
-  --provider claude \
-  --model <model-name> \
-  --format markdown
-```
-
-The resulting plan can capture environment assumptions, reproduction steps, expected behavior, actual behavior, likely affected files, and missing evidence.
-
-### 4. Review a local diff
+### Local diff
 
 ```bash
 npx aunoforge review \
@@ -253,19 +215,113 @@ npx aunoforge review \
   --format markdown
 ```
 
-### 5. Prepare release notes
+### GitHub pull request
 
 ```bash
-npx aunoforge release
+npx aunoforge review \
+  --pr 42 \
+  --owner OWNER \
+  --repo REPO \
+  --provider codex \
+  --model MODEL \
+  --format json
 ```
 
-AunoForge derives release information from repository history instead of asking a model to invent a changelog from memory.
+### Incremental comparison on current main
+
+```bash
+node packages/cli/dist/bin.js review \
+  --root /path/to/repo \
+  --provider mock \
+  --diff ./change.diff \
+  --baseline ./previous-aunoforge-review.json \
+  --format json
+```
+
+Baseline comparison is fingerprint-based and reports `new`, `persistent`, `resolved`, and `regressed` findings. AunoForge does not remotely store or auto-discover your baseline.
+
+Read [Review Command](docs/commands/review.md).
+
+---
+
+## 🛡️ Security intelligence
+
+`aunoforge security` inventories supported Node dependency evidence without modifying the repository.
+
+```bash
+npx aunoforge security --format json
+```
+
+It is **offline by default**. Declared ranges remain declaration evidence, and resolved versions are reported only when a supported lockfile proves them.
+
+Optional OSV-compatible enrichment is explicit:
+
+```bash
+npx aunoforge security --format json --advisory osv
+```
+
+This opt-in sends only proven resolved package versions to the advisory adapter. It does not run a package manager, update manifests or lockfiles, create commits, or write to GitHub.
+
+Read [Security Command](docs/commands/security.md).
+
+---
+
+## 📦 Release intelligence
+
+`aunoforge release` prepares deterministic release intelligence from repository history and optional GitHub metadata.
+
+```bash
+npx aunoforge release --root . --from v0.1.0
+npx aunoforge release --root . --from v0.1.0 --format json --dry-run
+```
+
+It normalizes release-worthy evidence into **Breaking, Features, Fixes, Security, and Maintenance**, then recommends the highest evidence-backed semantic-version bump.
+
+The command does **not** create tags, modify repository files, push branches, publish a GitHub release, or publish a package. Release guidance remains a maintainer decision.
+
+Read [Release Command](docs/commands/release.md).
+
+---
+
+## ⚙️ Configuration and presets
+
+Project configuration lives at `.aunoforge/config.json` and uses a versioned allowlisted schema.
+
+```json
+{
+  "schemaVersion": 1,
+  "extends": "recommended"
+}
+```
+
+Built-in preset IDs:
+
+`recommended` · `minimal` · `strict` · `security` · `node` · `python` · `wordpress`
+
+Resolution is deterministic:
+
+```text
+explicit CLI/action input
+        > project config
+        > built-in preset
+        > surface default
+        > terminal fallback
+```
+
+Project configuration and presets **cannot grant write permission**, inject credentials, or enable merge/publish authority. Unknown security-sensitive keys fail closed.
+
+```bash
+npx aunoforge config validate --root .
+npx aunoforge init --root . --dry-run
+```
+
+Read [Configuration](docs/commands/config.md).
 
 ---
 
 ## 🤖 Providers
 
-AunoForge core uses a provider-neutral contract. Provider credentials stay inside the selected adapter and are not copied into normalized repository context.
+AunoForge core uses a provider-neutral contract. Credentials remain inside the selected adapter and are not copied into normalized repository context.
 
 | Provider | Network request | Credential | Best for |
 |---|---:|---|---|
@@ -273,47 +329,27 @@ AunoForge core uses a provider-neutral contract. Provider credentials stay insid
 | **Codex / OpenAI** | Yes | `OPENAI_API_KEY` | Structured AI-assisted maintenance workflows |
 | **Claude / Anthropic** | Yes | `ANTHROPIC_API_KEY` | Structured AI-assisted maintenance workflows |
 
-### Codex / OpenAI
-
 ```bash
+# Codex / OpenAI
 export OPENAI_API_KEY="..."
+npx aunoforge review --provider codex --model <model-name>
 
-npx aunoforge review \
-  --provider codex \
-  --model <model-name>
-```
-
-### Claude / Anthropic
-
-```bash
+# Claude / Anthropic
 export ANTHROPIC_API_KEY="..."
-
-npx aunoforge review \
-  --provider claude \
-  --model <model-name>
+npx aunoforge review --provider claude --model <model-name>
 ```
 
-Model names are configuration rather than hard-coded policy because available models change over time.
+Model names remain configuration rather than hard-coded policy because provider catalogs change over time.
 
 Read [Provider Concepts](docs/concepts/providers.md).
 
 ---
 
-## 🧩 Recipe Ecosystem
+## 🧩 Recipe ecosystem
 
-Recipes are versioned, declarative maintenance workflows that let contributors extend AunoForge **without modifying the core engine**.
+Recipes are versioned, declarative maintenance workflows that extend AunoForge **without changing the core engine**.
 
-AunoForge v0.1 ships **11 builtin recipes** across:
-
-- General maintenance
-- GitHub workflows
-- WordPress
-- WooCommerce
-- Node.js
-- Python
-- Django
-
-Example concept:
+AunoForge v0.1 ships **11 builtin recipes** spanning general maintenance, GitHub workflows, WordPress, WooCommerce, Node.js, Python, and Django.
 
 ```yaml
 schema: aunoforge.dev/recipe/v1
@@ -332,7 +368,7 @@ passes:
   - performance
 ```
 
-Recipes do **not** receive arbitrary shell or network execution in v0.1.
+Recipes do not receive arbitrary shell or network execution in v0.1.
 
 ```bash
 npx aunoforge recipes list
@@ -340,51 +376,20 @@ npx aunoforge recipe validate path/to/recipe.yml
 npx aunoforge recipe test path/to/recipe.yml
 ```
 
-Want to contribute without learning the whole codebase? **Adding a recipe or fixture is one of the best places to start.**
-
-Read [Recipes](docs/concepts/recipes.md) and the [Recipe Contribution Guide](docs/contributing/recipes.md).
+Adding a recipe or fixture is one of the smallest useful contribution paths. Read [Recipes](docs/concepts/recipes.md) and the [Recipe Contribution Guide](docs/contributing/recipes.md).
 
 ---
 
-## 🔐 Security by Default
+## 🔐 Security by default
 
 AunoForge is designed around one rule:
 
 > **Model output is untrusted until it survives repository evidence and maintainer policy.**
 
-### Default security posture
+Its regression suite protects invariants including:
 
-```yaml
-security:
-  mode: safe
-
-  filesystem:
-    read: true
-    write: false
-
-  shell:
-    execute: false
-
-  github:
-    read: true
-    write: false
-
-  network:
-    recipe_access: false
-
-  secrets:
-    redact: true
-
-  actions:
-    require_approval: true
-```
-
-### Security invariants
-
-AunoForge's regression suite protects rules such as:
-
-- a model cannot grant itself permissions
-- a recipe cannot bypass the policy engine
+- models cannot grant themselves permissions
+- recipes cannot bypass the policy engine
 - untrusted repository text cannot become system instructions
 - secrets must not unintentionally enter model context
 - read-only mode performs zero repository mutations
@@ -394,49 +399,36 @@ AunoForge's regression suite protects rules such as:
 - GitHub writes require explicit permission
 - model output cannot simulate human approval
 
+The stable GitHub Action defaults to read-only review and no comments. To permit a PR comment, a calling workflow must explicitly grant `pull-requests: write` **and** enable both `comment: 'true'` and `allow-write: 'true'`.
+
+AunoForge never auto-merges a pull request from this workflow.
+
 Read the [Security Model](docs/concepts/security.md) and [Security Policy](SECURITY.md).
 
 ---
 
-## ⚙️ GitHub Action
+## ⚙️ GitHub Action: stable and current-main
 
-The published **v0.1.0** release includes a GitHub Action that defaults to **read-only review** and **does not post comments**.
+### Stable v0.1.0
 
-```yaml
-name: AunoForge Review
-
-on:
-  pull_request:
-
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dhtoan/AunoForge@v0.1.0
-        with:
-          provider: mock
-          format: markdown
-          comment: 'false'
-```
-
-To allow PR comments, the calling workflow must explicitly grant `pull-requests: write` **and** enable both:
+Use the stable tag when you want the published release contract:
 
 ```yaml
-with:
-  comment: 'true'
-  allow-write: 'true'
+- uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+- uses: dhtoan/AunoForge@v0.1.0
+  with:
+    provider: mock
+    format: markdown
+    comment: 'false'
 ```
 
-AunoForge never auto-merges a pull request from this workflow.
+### Current main / upcoming v0.2
 
-For current-main / upcoming v0.2 features such as SARIF and incremental baselines, use the explicitly labeled [v0.2 example](docs/examples/aunoforge-review-v0.2.yml) rather than assuming those inputs exist in v0.1.0.
+Use `@main` only when intentionally testing unreleased capabilities. The maintained example demonstrates SARIF output, explicit baseline input, Step Summary/annotation behavior, and optional artifact persistence:
+
+[View the current-main v0.2 example →](docs/examples/aunoforge-review-v0.2.yml)
+
+AunoForge's own stable smoke intentionally exercises `dhtoan/AunoForge@v0.1.0`; third-party GitHub Actions in maintained workflows are pinned to reviewed full commit SHAs and tracked by weekly Dependabot updates.
 
 ---
 
@@ -462,7 +454,7 @@ flowchart TD
     I --> J
 
     J --> K[Policy / Safety Boundary]
-    K --> L[Terminal / Markdown / JSON]
+    K --> L[Terminal / Markdown / JSON / SARIF]
     L --> M[Maintainer Decision]
 ```
 
@@ -474,11 +466,11 @@ Core principles:
 4. **Security-by-default**
 5. **Community-extensible**
 
-See the [Architecture Overview](docs/architecture/overview.md).
+See [Architecture Overview](docs/architecture/overview.md).
 
 ---
 
-## 📁 Project Structure
+## 📁 Project structure
 
 ```text
 aunoforge/
@@ -505,7 +497,7 @@ aunoforge/
 
 ---
 
-## 🧪 Development
+## 🧪 Development and verification
 
 ```bash
 git clone https://github.com/dhtoan/AunoForge.git
@@ -521,77 +513,41 @@ pnpm typecheck
 pnpm test
 ```
 
-The v0.1 release gate is tested across:
+Maintained CI covers the Node.js **20 / 22 / 24** quality matrix plus macOS and Windows platform smoke.
 
-- Node.js 20
-- Node.js 22
-- Node.js 24
-- Linux
-- macOS
-- Windows
+Release-readiness checks also verify the packaged Action runtime rather than assuming generated files match source.
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome.
+Useful first contributions include:
 
-Good first contribution paths include:
-
-- adding a new maintenance recipe
-- adding a known-good / known-bad fixture
+- adding a maintenance recipe
+- adding a known-good or known-bad fixture
 - improving secret detection patterns
 - extending project detection
 - improving Windows/macOS/Linux portability
-- adding documentation or examples
-- adding a provider adapter after the provider contract stabilizes
+- improving documentation or copy-paste examples
+- contributing provider work as the external contract stabilizes
 
-Start with:
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), the [Recipe Contribution Guide](docs/contributing/recipes.md), [ROADMAP.md](ROADMAP.md), and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [Recipe Contribution Guide](docs/contributing/recipes.md)
-- [ROADMAP.md](ROADMAP.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-
-Please do not create fake adoption signals, empty releases, synthetic contributors, or trivial PR campaigns. AunoForge's OSS evidence is intended to represent real maintainer activity.
+AunoForge intentionally avoids fake adoption signals, empty releases, synthetic contributors, and trivial activity campaigns. Public OSS evidence should represent real maintainer and community activity.
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Project direction
 
-### v0.1 — Trustworthy maintainer CLI ✅
+**v0.1** established the trustworthy maintainer CLI, provider adapters, recipe contract, evidence validation, safe-mode policy, security regression suite, and read-only-by-default GitHub Action.
 
-- `init`, `doctor`, `triage`, `reproduce`, `review`, `release`
-- mock, Codex/OpenAI, Claude/Anthropic adapters
-- recipe v1 contract and builtin recipes
-- evidence validation and deterministic checks
-- safe-mode policy and security regression suite
-- read-only-by-default GitHub Action
+**Current main / upcoming v0.2** is hardening GitHub-native review and evidence workflows: report artifacts, SARIF, incremental baselines, Step Summary integration, configuration presets and precedence, security intelligence, release intelligence, Action packaging, and supply-chain hygiene.
 
-### v0.2 — GitHub Action improvements
+**v0.3** is reserved for provider and recipe SDK stability informed by real usage.
 
-- better report artifacts
-- improved action packaging
-- opt-in comment ergonomics
-- continued least-privilege and fork safety
+MCP, IDE integrations, a GitHub App, web dashboard, enterprise policy bundles, richer discovery, and autonomous code-changing workflows remain deferred until evidence justifies them.
 
-### v0.3 — Provider and recipe SDK stability
-
-- external adapter interfaces
-- better fixture tooling
-- compatibility tests
-- contributor feedback-driven API stabilization
-
-### Later, only if real usage justifies it
-
-- MCP server
-- IDE integrations
-- GitHub App
-- web dashboard
-- enterprise policy bundles
-- richer recipe discovery
-
-See [ROADMAP.md](ROADMAP.md) for the maintained roadmap.
+The maintained source of truth is [ROADMAP.md](ROADMAP.md).
 
 ---
 
@@ -600,21 +556,21 @@ See [ROADMAP.md](ROADMAP.md) for the maintained roadmap.
 <details>
 <summary><strong>Does AunoForge modify my repository?</strong></summary>
 
-Not by default. v0.1 starts in safe, read-only mode. Repository writes and GitHub writes are separate permission boundaries and require explicit opt-in where supported.
+Not by default. Repository writes and GitHub writes are explicit permission boundaries. Project configuration and presets cannot grant write authority.
 
 </details>
 
 <details>
-<summary><strong>Do I need Codex or Claude to use AunoForge?</strong></summary>
+<summary><strong>Do I need Codex or Claude?</strong></summary>
 
-No. The `mock` provider makes no model request, and deterministic checks can run without an AI provider. Codex and Claude are optional provider adapters.
+No. The `mock` provider makes no model request, and deterministic checks work without an AI provider. Codex and Claude are optional adapters.
 
 </details>
 
 <details>
 <summary><strong>Does AunoForge automatically merge pull requests?</strong></summary>
 
-No. Auto-merge is intentionally outside the v0.1 trust boundary.
+No. Human merge remains outside AunoForge's automated review boundary.
 
 </details>
 
@@ -628,26 +584,24 @@ No. v0.1 recipes are declarative and capability-scoped. Arbitrary recipe shell/n
 <details>
 <summary><strong>Why validate AI findings against repository evidence?</strong></summary>
 
-Because a plausible-looking review can still reference a nonexistent file, invalid line number, or unsupported conclusion. AunoForge treats generated findings as claims that must be checked rather than facts that must be trusted.
+Because plausible prose can still cite a nonexistent file, invalid line number, or unsupported conclusion. AunoForge treats generated findings as claims to check, not facts to trust.
 
 </details>
 
 <details>
-<summary><strong>Can I add another AI provider?</strong></summary>
+<summary><strong>Why keep stable and current-main examples separate?</strong></summary>
 
-The architecture is provider-neutral. The provider contract is intentionally isolated from core, but external adapter APIs are still being stabilized before v1.
+So users can distinguish the published `v0.1.0` contract from unreleased v0.2 capabilities. Stable examples should be copy-paste safe; current-main examples are intentionally labeled as development surfaces.
 
 </details>
 
 ---
 
-## 📊 OSS Evidence
+## 📊 Verifiable OSS evidence
 
 AunoForge does **not** claim downloads, active repositories, contributor counts, or ecosystem adoption before those measurements exist.
 
-Verified launch facts and future adoption evidence are tracked in [OSS-EVIDENCE.md](OSS-EVIDENCE.md).
-
-This keeps public project claims auditable and avoids vanity metrics becoming product requirements.
+Verified launch facts and future adoption evidence are tracked in [OSS-EVIDENCE.md](OSS-EVIDENCE.md). This keeps public project claims auditable and prevents vanity metrics from becoming product requirements.
 
 ---
 
@@ -656,11 +610,14 @@ This keeps public project claims auditable and avoids vanity metrics becoming pr
 | Resource | Description |
 |---|---|
 | [Getting Started](docs/getting-started.md) | Installation and first commands |
+| [Configuration](docs/commands/config.md) | Versioned config, presets, precedence, safety boundary |
+| [Review](docs/commands/review.md) | Six-pass review, evidence validation, baselines |
+| [Security Command](docs/commands/security.md) | Offline dependency evidence and optional advisories |
+| [Release Command](docs/commands/release.md) | Deterministic release intelligence |
 | [Architecture](docs/architecture/overview.md) | Core boundaries and data flow |
 | [Providers](docs/concepts/providers.md) | Mock, Codex/OpenAI, Claude/Anthropic |
 | [Recipes](docs/concepts/recipes.md) | Recipe contract and safety model |
 | [Security Model](docs/concepts/security.md) | Trust boundaries and safe defaults |
-| [Review Command](docs/commands/review.md) | Local diff and PR review workflow |
 | [Contributing](CONTRIBUTING.md) | Contribution workflow |
 | [Security Policy](SECURITY.md) | Vulnerability reporting |
 | [Roadmap](ROADMAP.md) | Project direction |
@@ -670,9 +627,7 @@ This keeps public project claims auditable and avoids vanity metrics becoming pr
 
 ## 📄 License
 
-AunoForge is licensed under the **Apache License 2.0**.
-
-See [LICENSE](LICENSE).
+AunoForge is licensed under the **Apache License 2.0**. See [LICENSE](LICENSE).
 
 ---
 
@@ -682,6 +637,6 @@ See [LICENSE](LICENSE).
 
 **AI proposes. AunoForge verifies. Maintainers decide.**
 
-[⭐ Star AunoForge](https://github.com/dhtoan/AunoForge) · [🐛 Report a Bug](https://github.com/dhtoan/AunoForge/issues) · [🤝 Contribute](CONTRIBUTING.md)
+[⭐ Star AunoForge](https://github.com/dhtoan/AunoForge) · [🚀 Get Started](docs/getting-started.md) · [🐛 Report a Bug](https://github.com/dhtoan/AunoForge/issues) · [🤝 Contribute](CONTRIBUTING.md) · [☕ Support](https://buymeacoffee.com/dhtoan)
 
 </div>
